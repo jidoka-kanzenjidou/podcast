@@ -1,10 +1,35 @@
 import axios from 'axios';
 import { readCache, writeCache } from './utils/cache.js';
 
+interface PodcastContent {
+  translated: string;
+  original: string;
+}
+
+interface PodcastAudioSegment {
+  segments: any[];
+  original: string;
+  translated: string;
+  startTime: number;
+  endTime: number;
+  audioBase64: string;
+}
+
+interface PodcastMessage {
+  content: PodcastContent[];
+  audio: {
+    trimmed: PodcastAudioSegment[];
+  };
+}
+
+interface PodcastChoice {
+  message: PodcastMessage;
+}
+
 interface PodcastResponse {
   correlationId: string;
   status?: string;
-  choices: any[];
+  choices: PodcastChoice[];
   error?: string;
 }
 
@@ -58,7 +83,6 @@ class BilingualPodcastService {
       if (statusResponse.choices) {
         return statusResponse;
       }
-      
       
       console.log(`Attempt ${attempt + 1}: Podcast not ready yet. Retrying in ${delay / 1000} seconds...`);
       await new Promise((resolve) => setTimeout(resolve, delay));
