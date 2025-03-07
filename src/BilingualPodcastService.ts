@@ -73,6 +73,13 @@ class BilingualPodcastService {
   }
 
   async waitForPodcast(correlationId: string, maxRetries = 10, delay = 5000): Promise<PodcastResponse | null> {
+    const cacheKey = `podcast_status_${correlationId}`;
+    const cachedResponse = await readCache(cacheKey);
+    
+    if (cachedResponse) {
+      return JSON.parse(cachedResponse);
+    }
+    
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       const statusResponse = await this.getPodcastStatus(correlationId);
       
@@ -81,6 +88,7 @@ class BilingualPodcastService {
         return null;
       }
       if (statusResponse.choices) {
+        await writeCache(cacheKey, Buffer.from(JSON.stringify(statusResponse)));
         return statusResponse;
       }
       
@@ -92,7 +100,7 @@ class BilingualPodcastService {
     return null;
   }
 
-  async createAndWaitForPodcast(prompt: string, maxRetries = 60, delay = 5000): Promise<PodcastResponse | null> {
+  async createAndWaitForPodcast(prompt: string, maxRetries = 120, delay = 5000): Promise<PodcastResponse | null> {
     try {
       const correlationId = await this.createPodcast(prompt);
       return await this.waitForPodcast(correlationId, maxRetries, delay);
