@@ -1,9 +1,10 @@
 import axios from 'axios';
+import { readCache, writeCache } from './utils/cache.js';
 
 interface PodcastResponse {
   correlationId: string;
   status?: string;
-  audioUrl?: string;
+  choices: any[];
   error?: string;
 }
 
@@ -14,14 +15,19 @@ class BilingualPodcastService {
     this.apiUrl = apiUrl;
   }
 
-  async createPodcast(prompt: string, language1: string, language2: string): Promise<string> {
+  async createPodcast(prompt: string): Promise<string> {
     try {
-      const response = await axios.post<PodcastResponse>(`${this.apiUrl}/api/podcasts`, {
-        prompt,
-        languages: [language1, language2],
-      });
+      const cacheKey = `podcast_${prompt.replace(/\s+/g, '_')}`;
+      const cachedCorrelationId = await readCache(cacheKey);
+      
+      if (cachedCorrelationId) {
+        return JSON.parse(cachedCorrelationId);
+      }
+      
+      const response = await axios.post<PodcastResponse>(`${this.apiUrl}/api/podcasts`, { prompt });
       
       if (response.data.correlationId) {
+        await writeCache(cacheKey, Buffer.from(JSON.stringify(response.data.correlationId)));
         return response.data.correlationId;
       }
       throw new Error('Failed to retrieve correlationId');
@@ -41,18 +47,18 @@ class BilingualPodcastService {
     }
   }
 
-  async waitForPodcast(correlationId: string, maxRetries = 10, delay = 5000): Promise<string | null> {
+  async waitForPodcast(correlationId: string, maxRetries = 10, delay = 5000): Promise<PodcastResponse | null> {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       const statusResponse = await this.getPodcastStatus(correlationId);
-      
-      if (statusResponse.audioUrl) {
-        return statusResponse.audioUrl;
-      }
       
       if (statusResponse.error) {
         console.error('Podcast generation error:', statusResponse.error);
         return null;
       }
+      if (statusResponse.choices) {
+        return statusResponse;
+      }
+      
       
       console.log(`Attempt ${attempt + 1}: Podcast not ready yet. Retrying in ${delay / 1000} seconds...`);
       await new Promise((resolve) => setTimeout(resolve, delay));
@@ -60,6 +66,16 @@ class BilingualPodcastService {
     
     console.error('Max retries reached. Podcast not available.');
     return null;
+  }
+
+  async createAndWaitForPodcast(prompt: string, maxRetries = 60, delay = 5000): Promise<PodcastResponse | null> {
+    try {
+      const correlationId = await this.createPodcast(prompt);
+      return await this.waitForPodcast(correlationId, maxRetries, delay);
+    } catch (error) {
+      console.error('Error creating and waiting for podcast:', error);
+      return null;
+    }
   }
 }
 
