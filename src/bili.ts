@@ -15,7 +15,6 @@ svc.createAndWaitForPodcast('Hãy tạo một podcast về công nghệ AI.')
             clipIndex++
             let words = clip.segments.reduce((a, b) => a.concat(b.words), []);
             for (const word of words) {
-                console.log(word.start, word.end)
                 if (word.start === word.end) {
                     word.end = word.end + 0.001
                 }
@@ -32,7 +31,7 @@ svc.createAndWaitForPodcast('Hãy tạo một podcast về công nghệ AI.')
                 musicFilePath: './sample-data/emotional-piano-music-256262.mp3',
                 imageFilePath: './sample-data/ladybird-thispost.png',
                 textData: words,
-                outputFilePath: './t' + clipIndex + '.mp4'
+                outputFilePath: './te-' + clipIndex + '.mp4'
             });
             console.log(creation);
         }

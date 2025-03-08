@@ -42,7 +42,7 @@ class BilingualPodcastService {
 
   async createPodcast(prompt: string): Promise<string> {
     try {
-      const cacheKey = `podcast_${prompt.replace(/\s+/g, '_')}`;
+      const cacheKey = `podcast_${prompt.replace(/\s+/g, '_')}.json`;
       const cachedCorrelationId = await readCache(cacheKey);
       
       if (cachedCorrelationId) {
@@ -62,18 +62,19 @@ class BilingualPodcastService {
     }
   }
 
-  async getPodcastStatus(correlationId: string): Promise<PodcastResponse> {
+  async getPodcastStatus(correlationId: string): Promise<PodcastResponse|null> {
     try {
       const response = await axios.get<PodcastResponse>(`${this.apiUrl}/api/podcasts/${correlationId}`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching podcast status:', error);
-      throw error;
+      // console.error('Error fetching podcast status:', error);
+
+      return null;
     }
   }
 
   async waitForPodcast(correlationId: string, maxRetries = 10, delay = 5000): Promise<PodcastResponse | null> {
-    const cacheKey = `podcast_status_${correlationId}`;
+    const cacheKey = `podcast_status_${correlationId}.json`;
     const cachedResponse = await readCache(cacheKey);
     
     if (cachedResponse) {
@@ -83,11 +84,11 @@ class BilingualPodcastService {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       const statusResponse = await this.getPodcastStatus(correlationId);
       
-      if (statusResponse.error) {
+      if (statusResponse?.error) {
         console.error('Podcast generation error:', statusResponse.error);
         return null;
       }
-      if (statusResponse.choices) {
+      if (statusResponse?.choices) {
         await writeCache(cacheKey, Buffer.from(JSON.stringify(statusResponse)));
         return statusResponse;
       }
