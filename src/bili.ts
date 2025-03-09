@@ -36,7 +36,9 @@ function extractWords(clip: Clip): Word[] {
         end: parseFloat((word.end - words[0].start).toFixed(3)),
     }));
     
-    for (const word of words) {
+    let filteredWords: Word[] = [];
+    for (let i = 0; i < words.length; i++) {
+        let word = words[i];
         if (word.start === word.end) {
             word.end += 0.001;
         }
@@ -44,8 +46,22 @@ function extractWords(clip: Clip): Word[] {
             console.log(word);
             throw new Error("Invalid word timing");
         }
+        if (i > 0 && (word.end - word.start) < 0.11 && words[i - 1].word.endsWith(".")) {
+            console.log("Short word detected:", i, word);
+            if (i < words.length - 1) {
+                let nextWord = words[i + 1];
+                word = {
+                    word: word.word + " " + nextWord.word,
+                    start: word.start,
+                    end: nextWord.end,
+                };
+                i++; // Skip the next word since it's merged
+            }
+        }
+        filteredWords.push(word);
     }
-    return words;
+
+    return filteredWords;
 }
 
 function saveAudioFile(clip: Clip, filePath: string): void {
@@ -54,6 +70,7 @@ function saveAudioFile(clip: Clip, filePath: string): void {
 
 async function processClip(clip: Clip, clipIndex: number): Promise<void> {
     const words: Word[] = extractWords(clip);
+    console.log(words)
     const speechFilePath: string = 'speech.aac';
     saveAudioFile(clip, speechFilePath);
     
@@ -77,9 +94,6 @@ async function handlePodcastResponse(response: PodcastResponse | null): Promise<
     
     for (const clip of trimmed) {
         clipIndex++;
-        if (clipIndex === 1) continue;
-        if (clipIndex > 2) break;
-        
         await processClip(clip, clipIndex);
     }
 }
