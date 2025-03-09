@@ -16,7 +16,7 @@ interface VideoCreationOptions {
   videoSize?: [number, number];
   textConfig?: { font_color: string; background_color: string };
   fps?: number;
-  duration?: number;
+  duration: number;
   outputFilePath: string;
 }
 
@@ -44,18 +44,18 @@ class VideoCreationService {
       formData.append("image_file", fs.createReadStream(options.imageFilePath));
 
       // Attach JSON data
-      console.log("📝 Attaching text data:", options.textData);
+      console.log("📝 Attaching text data:", typeof options.textData);
       formData.append("text_data", JSON.stringify(options.textData));
       formData.append("video_size", JSON.stringify(options.videoSize || [2560, 1440]));
       formData.append(
         "text_config",
         JSON.stringify(options.textConfig || { font_color: "white", background_color: "black" })
       );
-      formData.append("fps", options.fps || 4);
-      formData.append("duration", options.duration || 10);
+      formData.append("fps", options.fps || 24);
+      formData.append("duration", options.duration);
 
       // Make the request
-      console.log("🚀 Sending request to video creation API with formData:", formData);
+      console.log("🚀 Sending request to video creation API with formData:", typeof formData);
       const response: AxiosResponse = await axios.post(VideoCreationService.API_URL, formData, {
         headers: {
           ...formData.getHeaders(),
