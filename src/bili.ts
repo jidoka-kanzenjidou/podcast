@@ -104,11 +104,36 @@ async function processClip(clip: Clip, clipIndex: number): Promise<void> {
 async function handlePodcastResponse(response: PodcastResponse | null): Promise<void> {
     const trimmed: Clip[] = response?.choices[0].message.audio.trimmed || [];
     let clipIndex = 0;
+    const maxConcurrency = 3;
+    let activeTasks: Promise<void>[] = [];
 
-    for (const clip of trimmed) {
-        clipIndex++;
-        await processClip(clip, clipIndex);
+    async function processNext(): Promise<void> {
+        if (clipIndex >= trimmed.length) {
+            return;
+        }
+
+        const currentIndex = clipIndex++;
+        const clip = trimmed[currentIndex];
+
+        console.log(`Starting clip ${currentIndex + 1}`);
+
+        try {
+            await processClip(clip, currentIndex + 1);
+        } catch (error) {
+            console.error(`Error processing clip ${currentIndex + 1}:`, error);
+        }
+
+        // After finishing, start the next available clip
+        await processNext();
     }
+
+    // Start up to maxConcurrency tasks
+    for (let i = 0; i < maxConcurrency; i++) {
+        activeTasks.push(processNext());
+    }
+
+    // Wait until all tasks are done
+    await Promise.all(activeTasks);
 }
 
 svc.createAndWaitForPodcast('Hãy tạo một podcast về công nghệ nano.')
