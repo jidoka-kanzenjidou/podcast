@@ -29,13 +29,13 @@ function extractWords(clip: Clip): Word[] {
         start: word.start,
         end: word.end,
     }));
-    
+
     words = words.map((word) => ({
         word: word.word,
         start: parseFloat((word.start - words[0].start).toFixed(3)),
         end: parseFloat((word.end - words[0].start).toFixed(3)),
     }));
-    
+
     let filteredWords: Word[] = [];
     for (let i = 0; i < words.length; i++) {
         let word = words[i];
@@ -73,25 +73,34 @@ async function processClip(clip: Clip, clipIndex: number): Promise<void> {
     console.log(words)
     const speechFilePath: string = 'speech.aac';
     saveAudioFile(clip, speechFilePath);
-    
-    const creationOpts = {
+
+    let creation = await VideoCreationService.createVideo({
         speechFilePath,
         musicFilePath: './sample-data/emo.mp3',
-        imageFilePath: './sample-data/ladybird-thispost.png',
+        imageFilePaths: [
+            './sample_data/puppy_0.jpg',
+            './sample_data/puppy_1.jpg',
+            './sample_data/puppy_2.jpg',
+            './sample_data/puppy_4.jpg',
+            './sample_data/puppy_5.jpg'
+        ],
         textData: words,
         duration: words[words.length - 1].end,
+        fps: 24,
+        videoSize: [1920, 1080],
+        textConfig: {
+            font_color: 'white',
+            background_color: 'black'
+        },
         outputFilePath: `./te-${clipIndex}.mp4`
-    };
-    
-    console.log(creationOpts);
-    let creation = await VideoCreationService.createVideo(creationOpts);
+    });
     console.log(creation);
 }
 
 async function handlePodcastResponse(response: PodcastResponse | null): Promise<void> {
     const trimmed: Clip[] = response?.choices[0].message.audio.trimmed || [];
     let clipIndex = 0;
-    
+
     for (const clip of trimmed) {
         clipIndex++;
         await processClip(clip, clipIndex);
