@@ -1,6 +1,7 @@
 import axios, { AxiosResponse } from "axios";
 import FormData from "form-data";
 import fs from "fs";
+import path from "path";
 
 interface TextData {
   word: string;
@@ -11,7 +12,7 @@ interface TextData {
 interface VideoCreationOptions {
   speechFilePath: string;
   musicFilePath: string;
-  imageFilePath: string;
+  imageFilePaths: string[];
   textData: TextData[];
   videoSize?: [number, number];
   textConfig?: { font_color: string; background_color: string };
@@ -35,13 +36,39 @@ class VideoCreationService {
       console.log("📤 Starting video creation process with options:", options);
       const formData = new FormData();
 
-      // Attach media files
-      console.log(`🎙️ Attaching speech file: ${options.speechFilePath}`);
-      formData.append("speech_file", fs.createReadStream(options.speechFilePath));
-      console.log(`🎵 Attaching music file: ${options.musicFilePath}`);
-      formData.append("music_file", fs.createReadStream(options.musicFilePath));
-      console.log(`🖼️ Attaching image file: ${options.imageFilePath}`);
-      formData.append("image_file", fs.createReadStream(options.imageFilePath));
+      // Convert to absolute paths
+      const absSpeechFilePath = path.resolve(options.speechFilePath);
+      const absMusicFilePath = path.resolve(options.musicFilePath);
+      const absImageFilePaths = options.imageFilePaths.map(imagePath => path.resolve(imagePath));
+
+      // Validate and attach speech file
+      console.log(`🎙️ Validating speech file: ${absSpeechFilePath}`);
+      if (!fs.existsSync(absSpeechFilePath)) {
+        throw new Error(`Speech file not found at path: ${absSpeechFilePath}`);
+      }
+      console.log(`✅ Attaching speech file: ${absSpeechFilePath}`);
+      formData.append("speech_file", fs.createReadStream(absSpeechFilePath));
+
+      // Validate and attach music file
+      console.log(`🎵 Validating music file: ${absMusicFilePath}`);
+      if (!fs.existsSync(absMusicFilePath)) {
+        throw new Error(`Music file not found at path: ${absMusicFilePath}`);
+      }
+      console.log(`✅ Attaching music file: ${absMusicFilePath}`);
+      formData.append("music_file", fs.createReadStream(absMusicFilePath));
+
+      // Validate and attach multiple image files
+      absImageFilePaths.forEach((imagePath, index) => {
+        console.log(`🖼️ Validating image file ${index + 1}: ${imagePath}`);
+
+        if (!fs.existsSync(imagePath)) {
+          console.error(`❌ Image file does not exist: ${imagePath}`);
+          throw new Error(`Image file not found at path: ${imagePath}`);
+        }
+
+        console.log(`✅ Attaching image file ${index + 1}: ${imagePath}`);
+        formData.append("image_files", fs.createReadStream(imagePath));
+      });
 
       // Attach JSON data
       console.log("📝 Attaching text data:", typeof options.textData);
@@ -51,8 +78,8 @@ class VideoCreationService {
         "text_config",
         JSON.stringify(options.textConfig || { font_color: "white", background_color: "black" })
       );
-      formData.append("fps", options.fps || 24);
-      formData.append("duration", options.duration);
+      formData.append("fps", `${options.fps || 24}`);
+      formData.append("duration", `${options.duration}`);
 
       // Make the request
       console.log("🚀 Sending request to video creation API with formData:", typeof formData);
