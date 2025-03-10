@@ -112,7 +112,7 @@ class VideoCreationService {
   private static async pollForVideo(correlationId: string): Promise<Buffer> {
     const pollUrl = `${VideoCreationService.API_URL}${correlationId}`;
     let attempts = 0;
-    const maxAttempts = 12 * 5;
+    const maxAttempts = 12 * 15;
     const delay = 5000; // 5 seconds
 
     console.log(`⏳ Polling for video status. Correlation ID: ${correlationId}`);

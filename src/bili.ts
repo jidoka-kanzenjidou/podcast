@@ -69,6 +69,10 @@ function saveAudioFile(clip: Clip, filePath: string): void {
 }
 
 async function processClip(clip: Clip, clipIndex: number): Promise<void> {
+    const outputFilePath = `./te-${clipIndex}.mp4`
+    if (fs.existsSync(outputFilePath)) {
+        return;
+    }
     const words: Word[] = extractWords(clip);
     console.log(words)
     const speechFilePath: string = 'speech.aac';
@@ -92,7 +96,7 @@ async function processClip(clip: Clip, clipIndex: number): Promise<void> {
             font_color: 'white',
             background_color: 'black'
         },
-        outputFilePath: `./te-${clipIndex}.mp4`
+        outputFilePath
     });
     console.log(creation);
 }
