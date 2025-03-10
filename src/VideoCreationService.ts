@@ -116,23 +116,39 @@ class VideoCreationService {
     const delay = 5000; // 5 seconds
 
     console.log(`⏳ Polling for video status. Correlation ID: ${correlationId}`);
+
     while (attempts < maxAttempts) {
+      console.log(`🔎 Attempt ${attempts + 1} of ${maxAttempts}...`);
+
       try {
         const response = await fetch(pollUrl);
+        console.log(`📡 Received response. Status: ${response.status}`);
+
         const contentType = response.headers.get("content-type");
+        console.log(`📑 Content-Type received: ${contentType}`);
+
+        if (!response.ok) {
+          console.warn(`⚠️ Non-OK HTTP status: ${response.status}. Retrying...`);
+        }
 
         if (contentType === "video/mp4") {
+          console.log("✅ Video processing completed! Video is ready to download.");
           const arrayBuffer = await response.arrayBuffer();
-          console.log("✅ Video processing completed! Video is ready.");
           return Buffer.from(arrayBuffer);
+        } else {
+          console.log("⌛ Video is not ready yet. Retrying after delay...");
         }
+
       } catch (error) {
-        console.warn("⚠️ Error polling for video, retrying... Error:", (error as Error).message);
+        console.warn("⚠️ Error occurred while polling for video:", (error as Error).message);
       }
+
       attempts++;
+      console.log(`🔁 Waiting ${delay / 1000} seconds before next attempt...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
-    console.error("❌ Video processing timed out.");
+
+    console.error("❌ Video processing timed out after maximum attempts.");
     throw new Error("Video processing timed out.");
   }
 
