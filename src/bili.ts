@@ -1,7 +1,6 @@
 import BilingualPodcastService from "./BilingualPodcastService.js";
-import VideoCreationService from "./VideoCreationService.js";
+import VideoCreationService, { VideoCreationOptions } from "./VideoCreationService.js";
 import fs from "fs";
-import pLimit from "p-limit";
 import { extractWords } from "./utils/words.js"
 
 interface Word {
@@ -32,18 +31,19 @@ function saveAudioFile(clip: Clip, filePath: string): void {
     fs.writeFileSync(filePath, Buffer.from(clip.audioBase64, 'base64'));
 }
 
-async function processClip(clip: Clip, clipIndex: number): Promise<void> {
-    const outputFilePath = `./te-${clipIndex}.mp4`
+async function processClip(clip: Clip, clipIndex: number): Promise<VideoCreationOptions | null> {
+    const outputFilePath = `./te-${clipIndex}.mp4`;
     if (fs.existsSync(outputFilePath)) {
         console.log(`Clip ${clipIndex} already exists, skipping.`);
-        return;
+        return null;
     }
+
     const words: Word[] = extractWords(clip);
-    console.log(words)
-    const speechFilePath: string = 'speech.aac';
+    console.log(words);
+    const speechFilePath: string = `speech-${clipIndex}.aac`;
     saveAudioFile(clip, speechFilePath);
 
-    let creation = await VideoCreationService.createVideo({
+    return {
         speechFilePath,
         musicFilePath: './sample-data/emo.mp3',
         imageFilePaths: [
@@ -62,8 +62,7 @@ async function processClip(clip: Clip, clipIndex: number): Promise<void> {
             background_color: 'black'
         },
         outputFilePath
-    });
-    console.log(creation);
+    };
 }
 
 async function handlePodcastResponse(response: PodcastResponse | null): Promise<void> {
@@ -74,34 +73,37 @@ async function handlePodcastResponse(response: PodcastResponse | null): Promise<
         return;
     }
 
-    const process = async (clip: Clip, index: number) => {
-        console.log(`Starting clip ${index + 1}`);
-        await processClip(clip, index + 1);
-    };
+    console.log(`Processing ${trimmed.length} clips in bulk mode.`);
 
-    let tasks: Promise<void>[] = [];
+    const optionsPromises = trimmed.map((clip, index) => processClip(clip, index + 1));
+    const options = (await Promise.all(optionsPromises)).filter(opt => opt !== null) as VideoCreationOptions[];
 
-    if (USE_CONCURRENCY) {
-        const maxConcurrency = 3;
-        const limit = pLimit(maxConcurrency);
+    if (options.length === 0) {
+        console.log('No clips to process after filtering existing files.');
+        return;
+    }
 
-        tasks = trimmed.map((clip, index) => limit(() => process(clip, index)));
+    try {
+        const correlationIds = await VideoCreationService.bulkRequestVideoCreation(options);
+        const outputFilePaths = options.map(opt => opt.outputFilePath);
 
-        try {
-            await Promise.all(tasks);
-            console.log('All clips processed successfully (concurrent)!');
-        } catch (error) {
-            console.error('Processing stopped due to an error:', error);
-        }
-    } else {
-        try {
-            for (let index = 0; index < trimmed.length; index++) {
-                await process(trimmed[index], index);
+        await VideoCreationService.bulkPollForVideos(correlationIds, outputFilePaths, {
+            maxAttempts: 12 * 10, // 10 minutes assuming 5s delay
+            delay: 5000, // 5 seconds
+            onProgress: (index, attempt) => {
+                console.log(`⏳ [Clip ${index + 1}] Polling attempt ${attempt + 1}`);
+            },
+            onSuccess: (index, filePath) => {
+                console.log(`✅ [Clip ${index + 1}] Video downloaded successfully at ${filePath}`);
+            },
+            onError: (index, error) => {
+                console.error(`❌ [Clip ${index + 1}] Failed after max attempts. Error: ${error.message}`);
             }
-            console.log('All clips processed successfully (sequential)!');
-        } catch (error) {
-            console.error('Processing stopped due to an error:', error);
-        }
+        });
+
+        console.log('🎉 All clips processed and downloaded successfully!');
+    } catch (error) {
+        console.error('Processing stopped due to an error:', error);
     }
 }
 
