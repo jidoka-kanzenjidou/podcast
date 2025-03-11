@@ -1,6 +1,8 @@
 import BilingualPodcastService from "./BilingualPodcastService.js";
 import VideoCreationService from "./VideoCreationService.js";
 import fs from "fs";
+import pLimit from "p-limit";
+import { extractWords } from "./utils/words.js"
 
 interface Word {
     word: string;
@@ -21,48 +23,10 @@ interface PodcastResponse {
     choices: { message: { audio: { trimmed: Clip[] } } }[];
 }
 
+// Feature flag for concurrency logic
+const USE_CONCURRENCY = false;
+
 let svc = new BilingualPodcastService('https://http-bairingaru-okane-production-80.schnworks.com');
-
-function extractWords(clip: Clip): Word[] {
-    let words: Word[] = clip.segments.reduce((a, b: any) => a.concat(b.words), []).map((word: Word) => ({
-        word: word.word,
-        start: word.start,
-        end: word.end,
-    }));
-
-    words = words.map((word) => ({
-        word: word.word,
-        start: parseFloat((word.start - words[0].start).toFixed(3)),
-        end: parseFloat((word.end - words[0].start).toFixed(3)),
-    }));
-
-    let filteredWords: Word[] = [];
-    for (let i = 0; i < words.length; i++) {
-        let word = words[i];
-        if (word.start === word.end) {
-            word.end += 0.001;
-        }
-        if (word.start >= word.end) {
-            console.log(word);
-            throw new Error("Invalid word timing");
-        }
-        if (i > 0 && (word.end - word.start) < 0.11 && words[i - 1].word.endsWith(".")) {
-            console.log("Short word detected:", i, word);
-            if (i < words.length - 1) {
-                let nextWord = words[i + 1];
-                word = {
-                    word: word.word + " " + nextWord.word,
-                    start: word.start,
-                    end: nextWord.end,
-                };
-                i++; // Skip the next word since it's merged
-            }
-        }
-        filteredWords.push(word);
-    }
-
-    return filteredWords;
-}
 
 function saveAudioFile(clip: Clip, filePath: string): void {
     fs.writeFileSync(filePath, Buffer.from(clip.audioBase64, 'base64'));
@@ -71,6 +35,7 @@ function saveAudioFile(clip: Clip, filePath: string): void {
 async function processClip(clip: Clip, clipIndex: number): Promise<void> {
     const outputFilePath = `./te-${clipIndex}.mp4`
     if (fs.existsSync(outputFilePath)) {
+        console.log(`Clip ${clipIndex} already exists, skipping.`);
         return;
     }
     const words: Word[] = extractWords(clip);
@@ -103,39 +68,44 @@ async function processClip(clip: Clip, clipIndex: number): Promise<void> {
 
 async function handlePodcastResponse(response: PodcastResponse | null): Promise<void> {
     const trimmed: Clip[] = response?.choices[0].message.audio.trimmed || [];
-    let clipIndex = 0;
-    const maxConcurrency = 3;
-    let activeTasks: Promise<void>[] = [];
 
-    async function processNext(): Promise<void> {
-        if (clipIndex >= trimmed.length) {
-            return;
-        }
+    if (trimmed.length === 0) {
+        console.log('No clips to process.');
+        return;
+    }
 
-        const currentIndex = clipIndex++;
-        const clip = trimmed[currentIndex];
+    const process = async (clip: Clip, index: number) => {
+        console.log(`Starting clip ${index + 1}`);
+        await processClip(clip, index + 1);
+    };
 
-        console.log(`Starting clip ${currentIndex + 1}`);
+    let tasks: Promise<void>[] = [];
+
+    if (USE_CONCURRENCY) {
+        const maxConcurrency = 3;
+        const limit = pLimit(maxConcurrency);
+
+        tasks = trimmed.map((clip, index) => limit(() => process(clip, index)));
 
         try {
-            await processClip(clip, currentIndex + 1);
+            await Promise.all(tasks);
+            console.log('All clips processed successfully (concurrent)!');
         } catch (error) {
-            console.error(`Error processing clip ${currentIndex + 1}:`, error);
+            console.error('Processing stopped due to an error:', error);
         }
-
-        // After finishing, start the next available clip
-        await processNext();
+    } else {
+        try {
+            for (let index = 0; index < trimmed.length; index++) {
+                await process(trimmed[index], index);
+            }
+            console.log('All clips processed successfully (sequential)!');
+        } catch (error) {
+            console.error('Processing stopped due to an error:', error);
+        }
     }
-
-    // Start up to maxConcurrency tasks
-    for (let i = 0; i < maxConcurrency; i++) {
-        activeTasks.push(processNext());
-    }
-
-    // Wait until all tasks are done
-    await Promise.all(activeTasks);
 }
 
-svc.createAndWaitForPodcast('Hãy tạo một podcast về công nghệ nano.')
-    .then(handlePodcastResponse)
-    .catch(error => console.error("Error processing podcast:", error));
+(async function () {
+    let response = await svc.createAndWaitForPodcast('Hãy tạo một podcast về công nghệ nano.');
+    await handlePodcastResponse(response);
+})();

@@ -101,7 +101,7 @@ class BilingualPodcastService {
     return null;
   }
 
-  async createAndWaitForPodcast(prompt: string, maxRetries = 120, delay = 5000): Promise<PodcastResponse | null> {
+  async createAndWaitForPodcast(prompt: string, maxRetries = 12 * 30, delay = 5000): Promise<PodcastResponse | null> {
     try {
       const correlationId = await this.createPodcast(prompt);
       return await this.waitForPodcast(correlationId, maxRetries, delay);

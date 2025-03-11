@@ -32,9 +32,10 @@ class VideoCreationService {
   public static async createVideo(
     options: VideoCreationOptions
   ): Promise<string> {
+    let formData: any = null
     try {
       console.log("📤 Starting video creation process with options:", options);
-      const formData = new FormData();
+      formData = new FormData();
 
       // Convert to absolute paths
       const absSpeechFilePath = path.resolve(options.speechFilePath);
@@ -83,6 +84,7 @@ class VideoCreationService {
 
       // Make the request
       console.log("🚀 Sending request to video creation API with formData:", typeof formData);
+      console.error("❌ Error creating video:", formData);
       const response: AxiosResponse = await axios.post(VideoCreationService.API_URL, formData, {
         headers: {
           ...formData.getHeaders(),
@@ -100,9 +102,9 @@ class VideoCreationService {
 
       console.log(`🎉 Video saved at: ${options.outputFilePath}`);
       return options.outputFilePath;
-    } catch (error) {
-      console.error("❌ Error creating video:", error);
-      throw new Error("Failed to create video.");
+    } catch (error: any) {
+      // console.error("❌ Error creating video:", formData);
+      throw new Error("Failed to create video.", formData);
     }
   }
 
