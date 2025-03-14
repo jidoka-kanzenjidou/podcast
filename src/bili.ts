@@ -66,45 +66,69 @@ async function processClip(clip: Clip, clipIndex: number): Promise<VideoCreation
 }
 
 async function handlePodcastResponse(response: PodcastResponse | null): Promise<void> {
-    const trimmed: Clip[] = response?.choices[0].message.audio.trimmed || [];
+    const clips = extractClips(response);
 
-    if (trimmed.length === 0) {
+    if (clips.length === 0) {
         console.log('No clips to process.');
         return;
     }
 
-    console.log(`Processing ${trimmed.length} clips in bulk mode.`);
+    console.log(`Processing ${clips.length} clips.`);
 
-    const optionsPromises = trimmed.map((clip, index) => processClip(clip, index + 1));
-    const options = (await Promise.all(optionsPromises)).filter(opt => opt !== null) as VideoCreationOptions[];
+    const videoOptions = await getVideoCreationOptions(clips);
 
-    if (options.length === 0) {
+    if (videoOptions.length === 0) {
         console.log('No clips to process after filtering existing files.');
         return;
     }
 
+    await processVideos(videoOptions);
+}
+
+function extractClips(response: PodcastResponse | null): Clip[] {
+    return response?.choices[0].message.audio.trimmed || [];
+}
+
+async function getVideoCreationOptions(clips: Clip[]): Promise<VideoCreationOptions[]> {
+    const optionPromises = clips.map((clip, index) => processClip(clip, index + 1));
+    const options = await Promise.all(optionPromises);
+    const validOptions = options.filter((opt): opt is VideoCreationOptions => opt !== null);
+
+    console.log(`Filtered out ${clips.length - validOptions.length} clips with existing videos.`);
+    return validOptions;
+}
+
+async function processVideos(options: VideoCreationOptions[]): Promise<void> {
     try {
-        const correlationIds = await VideoCreationService.bulkRequestVideoCreation(options);
-        const outputFilePaths = options.map(opt => opt.outputFilePath);
-
-        await VideoCreationService.bulkPollForVideos(correlationIds, outputFilePaths, {
-            maxAttempts: 12 * 10, // 10 minutes assuming 5s delay
-            delay: 5000, // 5 seconds
-            onProgress: (index, attempt) => {
-                console.log(`⏳ [Clip ${index + 1}] Polling attempt ${attempt + 1}`);
-            },
-            onSuccess: (index, filePath) => {
-                console.log(`✅ [Clip ${index + 1}] Video downloaded successfully at ${filePath}`);
-            },
-            onError: (index, error) => {
-                console.error(`❌ [Clip ${index + 1}] Failed after max attempts. Error: ${error.message}`);
-            }
-        });
-
+        const correlationIds = await requestVideoCreations(options);
+        await pollForVideoCompletions(correlationIds, options.map(opt => opt.outputFilePath));
         console.log('🎉 All clips processed and downloaded successfully!');
     } catch (error) {
         console.error('Processing stopped due to an error:', error);
     }
+}
+
+async function requestVideoCreations(options: VideoCreationOptions[]): Promise<string[]> {
+    return VideoCreationService.bulkRequestVideoCreation(options);
+}
+
+async function pollForVideoCompletions(correlationIds: string[], outputFilePaths: string[]): Promise<void> {
+    await VideoCreationService.bulkPollForVideos(correlationIds, outputFilePaths, {
+        maxAttempts: 60 * 10, // 10 minutes assuming 1s delay
+        delay: 1_000, // 1 second
+        onProgress: (index, attempt, progress) => {
+            const progressMsg = (progress !== undefined && progress !== null)
+                ? `Progress: ${progress.toFixed(2)}%`
+                : 'Progress: unknown';
+            console.log(`⏳ [Clip ${index + 1}] Polling attempt ${attempt + 1}. ${progressMsg}`);
+        },
+        onSuccess: (index, filePath) => {
+            console.log(`✅ [Clip ${index + 1}] Video downloaded successfully at ${filePath}`);
+        },
+        onError: (index, error) => {
+            console.error(`❌ [Clip ${index + 1}] Failed after max attempts. Error: ${error.message}`);
+        }
+    });
 }
 
 (async function () {

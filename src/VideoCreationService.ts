@@ -91,7 +91,7 @@ class VideoCreationService {
     options?: {
       maxAttempts?: number;
       delay?: number;
-      onProgress?: (index: number, attempt: number) => void;
+      onProgress?: (index: number, attempt: number, progress?: number) => void;
       onSuccess?: (index: number, filePath: string) => void;
       onError?: (index: number, error: Error) => void;
     }
@@ -107,8 +107,8 @@ class VideoCreationService {
       onSuccess,
       onError
     } = options || {};
-    maxAttempts *= correlationIds.length
-    delay *= correlationIds.length
+    maxAttempts *= correlationIds.length;
+    delay *= correlationIds.length;
 
     console.log("⏳ Starting bulk polling for videos...");
 
@@ -120,7 +120,6 @@ class VideoCreationService {
 
       while (attempts < maxAttempts) {
         try {
-          onProgress?.(index, attempts);
           console.log(`🔎 [Video ${index + 1}] Attempt ${attempts + 1} of ${maxAttempts}...`);
 
           const pollUrl = `${VideoCreationService.API_URL}${correlationId}`;
@@ -134,6 +133,15 @@ class VideoCreationService {
             onSuccess?.(index, outputFilePath);
             return;
           }
+
+          let progress: number | undefined;
+          if (contentType?.startsWith('application/json')) {
+            const progressData = await response.json();
+            progress = progressData.progress;
+            console.log(`📊 [Video ${index + 1}] Progress: ${progress}%`);
+          }
+
+          onProgress?.(index, attempts, progress);
 
           attempts++;
           console.log(`🔁 [Video ${index + 1}] Waiting ${delay / 1000} seconds before next attempt...`);
@@ -238,6 +246,12 @@ class VideoCreationService {
 
       if (this.isVideoReady(response, contentType)) {
         return await this.downloadVideoBuffer(response);
+      }
+
+      if (contentType?.startsWith('application/json')) {
+        const data = await response.json();
+        const progress = data.progress;
+        console.log(`📊 Progress: ${progress}%`);
       }
 
       attempts++;
