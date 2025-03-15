@@ -1,3 +1,15 @@
+// Feature flag array
+const FEATURE_FLAGS = {
+  DEBUG_LOGGING: false, // Toggle debug logging here!
+};
+
+// Debug log helper
+const debugLog = (...args: any[]) => {
+  if (FEATURE_FLAGS.DEBUG_LOGGING) {
+    console.log(...args);
+  }
+};
+
 import axios, { AxiosResponse } from "axios";
 import FormData from "form-data";
 import fs from "fs";
@@ -10,6 +22,8 @@ interface TextData {
 }
 
 export interface VideoCreationOptions {
+  startTime: number;
+  endTime: number;
   speechFilePath: string;
   musicFilePath: string;
   imageFilePaths: string[];
@@ -25,15 +39,12 @@ class VideoCreationService {
   private static API_URL =
     "https://http-chokkanteki-okane-production-80.schnworks.com/api/v1/video-creation/";
 
-  /**
-   * Orchestrates the video creation process.
-   * @param options Video creation parameters
-   */
   public static async createVideo(
     options: VideoCreationOptions
   ): Promise<string> {
     try {
-      console.log("📤 Starting video creation process with options:", options);
+      debugLog("📤 Starting video creation process with options:");
+      debugLog(options);
 
       const absPaths = this.validateAndResolveFiles(options);
       const formData = this.prepareFormData(options, absPaths);
@@ -41,26 +52,23 @@ class VideoCreationService {
       const videoBuffer = await this.pollForVideo(correlationId);
       await this.downloadVideo(videoBuffer, options.outputFilePath);
 
-      console.log(`🎉 Video saved at: ${options.outputFilePath}`);
+      debugLog(`🎉 Video saved at: ${options.outputFilePath}`);
       return options.outputFilePath;
     } catch (error: any) {
-      console.error("❌ Error creating video:", error);
+      debugLog("❌ Error creating video:");
+      debugLog(error);
       throw new Error("Failed to create video.");
     }
   }
 
-  /**
-   * Sends multiple video creation requests and returns their correlation IDs.
-   * @param optionsArray Array of video creation parameters
-   */
   public static async bulkRequestVideoCreation(
     optionsArray: VideoCreationOptions[]
   ): Promise<string[]> {
     try {
-      console.log("📦 Starting bulk video creation requests...");
+      debugLog("📦 Starting bulk video creation requests...");
 
       const correlationIdPromises = optionsArray.map(async (options, index) => {
-        console.log(`📝 Processing request ${index + 1} of ${optionsArray.length}`);
+        debugLog(`📝 Processing request ${index + 1} of ${optionsArray.length}`);
         const absPaths = this.validateAndResolveFiles(options);
         const formData = this.prepareFormData(options, absPaths);
         const correlationId = await this.requestVideoCreation(formData);
@@ -69,22 +77,18 @@ class VideoCreationService {
 
       const correlationIds = await Promise.all(correlationIdPromises);
 
-      console.log("✅ Bulk video creation requests submitted successfully.");
-      console.log("Correlation IDs:", correlationIds);
+      debugLog("✅ Bulk video creation requests submitted successfully.");
+      debugLog("Correlation IDs:");
+      debugLog(correlationIds);
 
       return correlationIds;
     } catch (error: any) {
-      console.error("❌ Error in bulk video creation requests:", error);
+      debugLog("❌ Error in bulk video creation requests:");
+      debugLog(error);
       throw new Error("Bulk video creation requests failed.");
     }
   }
 
-  /**
-   * Polls for multiple videos using an array of correlation IDs.
-   * @param correlationIds Array of correlation IDs to poll for video completion
-   * @param outputFilePaths Array of output file paths to save downloaded videos
-   * @param options Optional settings for polling behavior
-   */
   public static async bulkPollForVideos(
     correlationIds: string[],
     outputFilePaths: string[],
@@ -100,28 +104,34 @@ class VideoCreationService {
       throw new Error("The number of correlation IDs must match the number of output file paths.");
     }
 
-    let {
+    const {
       maxAttempts = 12 * 15,
       delay = 5000,
       onProgress,
       onSuccess,
       onError
     } = options || {};
-    maxAttempts *= correlationIds.length;
-    delay *= correlationIds.length;
 
-    console.log("⏳ Starting bulk polling for videos...");
+    debugLog("⏳ Starting sequential bulk polling for videos...");
 
-    const pollPromises = correlationIds.map(async (correlationId, index) => {
-      const outputFilePath = outputFilePaths[index];
-      let attempts = 0;
+    const completed: boolean[] = correlationIds.map(() => false);
+    let attempts = 0;
 
-      console.log(`📥 Polling for video ${index + 1} with Correlation ID: ${correlationId}`);
+    while (attempts < maxAttempts) {
+      debugLog(`🔎 Bulk polling attempt ${attempts + 1} of ${maxAttempts}...`);
 
-      while (attempts < maxAttempts) {
+      let allCompleted = true;
+      let progressMessages: string[] = [];
+
+      for (let index = 0; index < correlationIds.length; index++) {
+        if (completed[index]) {
+          continue;
+        }
+
+        const correlationId = correlationIds[index];
+        const outputFilePath = outputFilePaths[index];
+
         try {
-          console.log(`🔎 [Video ${index + 1}] Attempt ${attempts + 1} of ${maxAttempts}...`);
-
           const pollUrl = `${VideoCreationService.API_URL}${correlationId}`;
           const response = await this.fetchVideoStatus(pollUrl);
           const contentType = this.getContentType(response);
@@ -131,40 +141,58 @@ class VideoCreationService {
             await this.downloadVideo(videoBuffer, outputFilePath);
             console.log(`✅ [Video ${index + 1}] Download complete: ${outputFilePath}`);
             onSuccess?.(index, outputFilePath);
-            return;
+            completed[index] = true;
+          } else {
+            let progress: number = 0;
+            if (contentType?.startsWith('application/json')) {
+              const progressData = await response.json();
+              progress = progressData.progress || 0;
+              const progressBar = VideoCreationService.createProgressBar(progress);
+
+              const message = `📊 [Video ${String(index + 1).padStart(2, '0')}] `
+                + `Progress: ${String(progress).padStart(4, '0')}% `
+                + `${progressBar}`;
+
+              progressMessages.push(message);
+            }
+            onProgress?.(index, attempts, progress);
+            allCompleted = false;
           }
-
-          let progress: number | undefined;
-          if (contentType?.startsWith('application/json')) {
-            const progressData = await response.json();
-            progress = progressData.progress;
-            console.log(`📊 [Video ${index + 1}] Progress: ${progress}%`);
-          }
-
-          onProgress?.(index, attempts, progress);
-
-          attempts++;
-          console.log(`🔁 [Video ${index + 1}] Waiting ${delay / 1000} seconds before next attempt...`);
-          await this.delay(delay);
 
         } catch (error: any) {
-          console.warn(`⚠️ [Video ${index + 1}] Polling error: ${error.message}`);
-          attempts++;
-          if (attempts >= maxAttempts) {
-            console.error(`❌ [Video ${index + 1}] Reached max attempts. Giving up.`);
-            onError?.(index, error);
-            return;
-          }
-          await this.delay(delay);
+          debugLog(`⚠️ [Video ${index + 1}] Polling error: ${error.message}`);
+          onError?.(index, error);
+          allCompleted = false;
         }
       }
 
-      onError?.(index, new Error("Polling timed out"));
-    });
+      if (progressMessages.length > 0) {
+        console.log('\n' + progressMessages.join('\n') + '\n');
+      }
 
-    await Promise.all(pollPromises);
+      if (allCompleted) {
+        debugLog("🎉 All videos have been successfully polled and downloaded!");
+        return;
+      }
 
-    console.log("🎉 Bulk polling completed!");
+      attempts++;
+      debugLog(`🔁 Waiting ${delay / 1000} seconds before next bulk polling attempt...`);
+      await this.delay(delay);
+    }
+
+    for (let index = 0; index < correlationIds.length; index++) {
+      if (!completed[index]) {
+        debugLog(`❌ [Video ${index + 1}] Polling timed out.`);
+        onError?.(index, new Error("Polling timed out"));
+      }
+    }
+  }
+
+  private static createProgressBar(progress: number): string {
+    const totalBlocks = 20;
+    const filledBlocks = Math.round((progress / 100) * totalBlocks);
+    const emptyBlocks = totalBlocks - filledBlocks;
+    return `|${"🟩".repeat(filledBlocks)}${"⬜".repeat(emptyBlocks)}|`;
   }
 
   private static validateAndResolveFiles(options: VideoCreationOptions) {
@@ -216,7 +244,7 @@ class VideoCreationService {
   }
 
   private static async requestVideoCreation(formData: FormData): Promise<string> {
-    console.log("🚀 Sending request to video creation API");
+    debugLog("🚀 Sending request to video creation API");
 
     const response: AxiosResponse = await axios.post(VideoCreationService.API_URL, formData, {
       headers: {
@@ -225,7 +253,7 @@ class VideoCreationService {
     });
 
     const correlationId = response.data['correlation_id'];
-    console.log(`✅ Video processing started. Correlation ID: ${correlationId}`);
+    debugLog(`✅ Video processing started. Correlation ID: ${correlationId}`);
 
     return correlationId;
   }
@@ -236,10 +264,10 @@ class VideoCreationService {
     const maxAttempts = 12 * 15;
     const delay = 5000;
 
-    console.log(`⏳ Polling for video status. Correlation ID: ${correlationId}`);
+    debugLog(`⏳ Polling for video status. Correlation ID: ${correlationId}`);
 
     while (attempts < maxAttempts) {
-      console.log(`🔎 Attempt ${attempts + 1} of ${maxAttempts}...`);
+      debugLog(`🔎 Attempt ${attempts + 1} of ${maxAttempts}...`);
 
       const response = await this.fetchVideoStatus(pollUrl);
       const contentType = this.getContentType(response);
@@ -251,47 +279,48 @@ class VideoCreationService {
       if (contentType?.startsWith('application/json')) {
         const data = await response.json();
         const progress = data.progress;
-        console.log(`📊 Progress: ${progress}%`);
+        const progressBar = VideoCreationService.createProgressBar(progress);
+        console.log(`📊 Progress: ${progress}% ${progressBar}`);
       }
 
       attempts++;
-      console.log(`🔁 Waiting ${delay / 1000} seconds before next attempt...`);
+      debugLog(`🔁 Waiting ${delay / 1000} seconds before next attempt...`);
       await this.delay(delay);
     }
 
-    console.error("❌ Video processing timed out after maximum attempts.");
+    debugLog("❌ Video processing timed out after maximum attempts.");
     throw new Error("Video processing timed out.");
   }
 
   private static async fetchVideoStatus(pollUrl: string): Promise<Response> {
     try {
       const response = await fetch(pollUrl);
-      console.log(`📡 Received response. Status: ${response.status}`);
+      debugLog(`📡 Received response. Status: ${response.status}`);
 
       if (!response.ok) {
-        console.warn(`⚠️ Non-OK HTTP status: ${response.status}. Retrying...`);
+        debugLog(`⚠️ Non-OK HTTP status: ${response.status}. Retrying...`);
       }
 
       return response;
     } catch (error) {
-      console.warn("⚠️ Error occurred while polling for video:", (error as Error).message);
+      debugLog(`⚠️ Error occurred while polling for video: ${(error as Error).message}`);
       throw error;
     }
   }
 
   private static getContentType(response: Response): string | null {
     const contentType = response.headers.get("content-type");
-    console.log(`📑 Content-Type received: ${contentType}`);
+    debugLog(`📑 Content-Type received: ${contentType}`);
     return contentType;
   }
 
   private static isVideoReady(response: Response, contentType: string | null): boolean {
     if (contentType === "video/mp4") {
-      console.log("✅ Video processing completed! Video is ready to download.");
+      debugLog("✅ Video processing completed! Video is ready to download.");
       return true;
     }
 
-    console.log("⌛ Video is not ready yet. Retrying after delay...");
+    debugLog("⌛ Video is not ready yet. Retrying after delay...");
     return false;
   }
 
@@ -308,7 +337,8 @@ class VideoCreationService {
     try {
       fs.writeFileSync(outputFilePath, videoBuffer);
     } catch (error) {
-      console.error("❌ Error downloading video:", error);
+      debugLog("❌ Error downloading video:");
+      debugLog(error);
       throw new Error("Failed to download video.");
     }
   }

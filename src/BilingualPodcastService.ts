@@ -18,6 +18,8 @@ interface PodcastAudioSegment {
 interface PodcastMessage {
   content: PodcastContent[];
   audio: {
+    data: string;
+    buffer?: Buffer;
     trimmed: PodcastAudioSegment[];
   };
 }

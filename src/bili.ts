@@ -15,11 +15,14 @@ interface Segment {
 
 interface Clip {
     segments: Segment[];
+    startTime: number;
+    endTime: number;
     audioBase64: string;
+    audioBuffer?: Buffer,
 }
 
 interface PodcastResponse {
-    choices: { message: { audio: { trimmed: Clip[] } } }[];
+    choices: { message: { audio: { data: string; buffer?: Buffer; trimmed: Clip[] } } }[];
 }
 
 // Feature flag for concurrency logic
@@ -28,7 +31,7 @@ const USE_CONCURRENCY = false;
 let svc = new BilingualPodcastService('https://http-bairingaru-okane-production-80.schnworks.com');
 
 function saveAudioFile(clip: Clip, filePath: string): void {
-    fs.writeFileSync(filePath, Buffer.from(clip.audioBase64, 'base64'));
+    fs.writeFileSync(filePath, clip.audioBuffer || '');
 }
 
 async function processClip(clip: Clip, clipIndex: number): Promise<VideoCreationOptions | null> {
@@ -44,6 +47,8 @@ async function processClip(clip: Clip, clipIndex: number): Promise<VideoCreation
     saveAudioFile(clip, speechFilePath);
 
     return {
+        startTime: clip.startTime,
+        endTime: clip.endTime,
         speechFilePath,
         musicFilePath: './sample-data/emo.mp3',
         imageFilePaths: [
@@ -55,7 +60,7 @@ async function processClip(clip: Clip, clipIndex: number): Promise<VideoCreation
         ],
         textData: words,
         duration: words[words.length - 1].end,
-        fps: 24,
+        fps: 24,  // 1,
         videoSize: [1920, 1080],
         textConfig: {
             font_color: 'white',
@@ -75,7 +80,7 @@ async function handlePodcastResponse(response: PodcastResponse | null): Promise<
 
     console.log(`Processing ${clips.length} clips.`);
 
-    const videoOptions = await getVideoCreationOptions(clips);
+    const videoOptions = await getVideoCreationOptions(clips.slice(6));
 
     if (videoOptions.length === 0) {
         console.log('No clips to process after filtering existing files.');
@@ -86,7 +91,13 @@ async function handlePodcastResponse(response: PodcastResponse | null): Promise<
 }
 
 function extractClips(response: PodcastResponse | null): Clip[] {
-    return response?.choices[0].message.audio.trimmed || [];
+    let audioBuffer = Buffer.from(response?.choices[0].message.audio.data || '', 'base64')
+    return (response?.choices[0].message.audio.trimmed || []).map((clip: Clip)=>{
+        return {
+            ...clip,
+            audioBuffer,
+        };
+    });
 }
 
 async function getVideoCreationOptions(clips: Clip[]): Promise<VideoCreationOptions[]> {
@@ -114,14 +125,8 @@ async function requestVideoCreations(options: VideoCreationOptions[]): Promise<s
 
 async function pollForVideoCompletions(correlationIds: string[], outputFilePaths: string[]): Promise<void> {
     await VideoCreationService.bulkPollForVideos(correlationIds, outputFilePaths, {
-        maxAttempts: 60 * 10, // 10 minutes assuming 1s delay
+        maxAttempts: 60 * 20, // 10 minutes assuming 1s delay
         delay: 1_000, // 1 second
-        onProgress: (index, attempt, progress) => {
-            const progressMsg = (progress !== undefined && progress !== null)
-                ? `Progress: ${progress.toFixed(2)}%`
-                : 'Progress: unknown';
-            console.log(`⏳ [Clip ${index + 1}] Polling attempt ${attempt + 1}. ${progressMsg}`);
-        },
         onSuccess: (index, filePath) => {
             console.log(`✅ [Clip ${index + 1}] Video downloaded successfully at ${filePath}`);
         },
