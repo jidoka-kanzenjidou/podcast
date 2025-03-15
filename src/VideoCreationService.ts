@@ -239,6 +239,8 @@ class VideoCreationService {
     );
     formData.append("fps", `${options.fps || 24}`);
     formData.append("duration", `${options.duration}`);
+    formData.append("start_time", `${options.startTime}`);
+    formData.append("end_time", `${options.endTime}`);
 
     return formData;
   }
