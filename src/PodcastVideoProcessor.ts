@@ -33,6 +33,13 @@ export class PodcastVideoProcessor {
     }
 
     async run(prompt: string): Promise<void> {
+        const isHealthy = await this.svc.checkHealth();
+    
+        if (!isHealthy) {
+            console.error('🚑 Service health check failed. Aborting podcast video processing.');
+            return;
+        }
+    
         const response = await this.svc.createAndWaitForPodcast(prompt);
         await this.handlePodcastResponse(response);
     }

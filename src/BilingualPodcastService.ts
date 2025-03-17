@@ -42,6 +42,23 @@ class BilingualPodcastService {
     this.apiUrl = apiUrl;
   }
 
+  async checkHealth(): Promise<boolean> {
+    const healthUrl = `${this.apiUrl}/healthz`;
+    try {
+      const response = await axios.get(healthUrl);
+      if (response.status === 200) {
+        console.log('✅ BilingualPodcastService is healthy.');
+        return true;
+      } else {
+        console.error(`❌ Health check failed. Status: ${response.status}`);
+        return false;
+      }
+    } catch (error) {
+      console.error(`❌ Error checking health: ${(error as Error).message}`);
+      return false;
+    }
+  }
+
   async createPodcast(prompt: string): Promise<string> {
     try {
       const cacheKey = `podcast_${prompt.replace(/\s+/g, '_')}.json`;
