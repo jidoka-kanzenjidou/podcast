@@ -150,8 +150,8 @@ class VideoCreationService {
               const progressBar = VideoCreationService.createProgressBar(progress);
 
               const message = `📊 [Video ${String(index + 1).padStart(2, '0')}] `
-                + `Progress: ${String(progress).padStart(4, '0')}% `
-                + `${progressBar}`;
+                + `Progress: ${progressBar} `
+                + `${String(progress).padStart(4, '0')}%`;
 
               progressMessages.push(message);
             }

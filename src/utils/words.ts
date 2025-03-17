@@ -22,8 +22,8 @@ export function extractWords(clip: Clip): Word[] {
 
     words = words.map((word) => ({
         word: word.word,
-        start: parseFloat((word.start - words[0].start).toFixed(3)),
-        end: parseFloat((word.end - words[0].start).toFixed(3)),
+        start: parseFloat((word.start).toFixed(3)),
+        end: parseFloat((word.end).toFixed(3)),
     }));
 
     let filteredWords: Word[] = [];
