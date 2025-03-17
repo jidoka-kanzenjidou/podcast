@@ -28,39 +28,63 @@ interface PodcastResponse {
     choices: { message: { audio: { data: string; buffer?: Buffer; trimmed: Clip[] } } }[];
 }
 
-export class PodcastVideoProcessor {
+export class PodcastVideoOrchestrator {
     private svc: BilingualPodcastService;
-    private imageFilePaths: string[] = [];
+    private processor: PodcastVideoProcessor;
 
     constructor(serviceUrl: string) {
         this.svc = new BilingualPodcastService(serviceUrl);
+        this.processor = new PodcastVideoProcessor(this.svc);
     }
 
     async run(prompt: string, imageSearchQuery: string): Promise<void> {
+        if (!(await this.processor.checkServiceHealth())) return;
+
+        await this.processor.prepareImages(imageSearchQuery);
+
+        const response = await this.processor.generatePodcast(prompt);
+        await this.processor.handlePodcastResponse(response);
+    }
+}
+
+class PodcastVideoProcessor {
+    private svc: BilingualPodcastService;
+    private imageFilePaths: string[] = [];
+
+    constructor(svc: BilingualPodcastService) {
+        this.svc = svc;
+    }
+
+    async checkServiceHealth(): Promise<boolean> {
         const isHealthy = await this.svc.checkHealth();
-    
+
         if (!isHealthy) {
             console.error('🚑 Service health check failed. Aborting podcast video processing.');
-            return;
+            return false;
         }
 
-        const imageDownloader = new ImageDownloader(imageSearchQuery, 5);
-        const imagesBuffer = await imageDownloader.downloadAllImages();
-        console.log(`Downloaded ${imagesBuffer.length} images for query "${imageSearchQuery}"`);
+        return true;
+    }
 
-        // Save the image buffers as temporary files
+    async prepareImages(query: string): Promise<void> {
+        const imageDownloader = new ImageDownloader(query, 5);
+        const imagesBuffer = await imageDownloader.downloadAllImages();
+
+        console.log(`Downloaded ${imagesBuffer.length} images for query "${query}"`);
+
         this.imageFilePaths = imagesBuffer.map((buffer, index) => {
             const tmpDir = os.tmpdir();
             const filePath = path.join(tmpDir, `temp_image_${index}.jpg`);
             fs.writeFileSync(filePath, buffer);
             return filePath;
         });
-    
-        const response = await this.svc.createAndWaitForPodcast(prompt);
-        await this.handlePodcastResponse(response);
     }
 
-    private async handlePodcastResponse(response: PodcastResponse | null): Promise<void> {
+    async generatePodcast(prompt: string): Promise<PodcastResponse | null> {
+        return await this.svc.createAndWaitForPodcast(prompt);
+    }
+
+    async handlePodcastResponse(response: PodcastResponse | null): Promise<void> {
         const clips = this.extractClips(response);
 
         if (clips.length === 0) {
