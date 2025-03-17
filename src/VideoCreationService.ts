@@ -83,8 +83,8 @@ class VideoCreationService {
 
       return correlationIds;
     } catch (error: any) {
-      debugLog("❌ Error in bulk video creation requests:");
-      debugLog(error);
+      console.error("❌ Error in bulk video creation requests:");
+      console.error(error);
       throw new Error("Bulk video creation requests failed.");
     }
   }

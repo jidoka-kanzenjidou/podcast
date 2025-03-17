@@ -26,7 +26,7 @@ interface PodcastResponse {
 }
 
 // Feature flag for concurrency logic
-const USE_CONCURRENCY = false;
+// const USE_CONCURRENCY = false;
 
 let svc = new BilingualPodcastService('https://http-bairingaru-okane-production-80.schnworks.com');
 
@@ -80,7 +80,7 @@ async function handlePodcastResponse(response: PodcastResponse | null): Promise<
 
     console.log(`Processing ${clips.length} clips.`);
 
-    const videoOptions = await getVideoCreationOptions(clips.slice(6));
+    const videoOptions = await getVideoCreationOptions(clips);
 
     if (videoOptions.length === 0) {
         console.log('No clips to process after filtering existing files.');

@@ -10,7 +10,7 @@ base_url = "https://http-fotosutokku-kiban-production-80.schnworks.com/search"
 
 # Fixed query parameters
 params = {
-    "query": "Intel",
+    "query": "nano technologies",
     "limit": 10,
     "output": "image"
 }
