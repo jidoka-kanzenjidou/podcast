@@ -1,6 +1,9 @@
 import BilingualPodcastService from "./BilingualPodcastService.js";
 import VideoCreationService, { VideoCreationOptions } from "./VideoCreationService.js";
+import { ImageDownloader } from "./ImageDownloader.js";
 import fs from "fs";
+import os from "os";
+import path from "path";
 import { extractWords } from "./utils/words.js"
 
 interface Word {
@@ -27,18 +30,31 @@ interface PodcastResponse {
 
 export class PodcastVideoProcessor {
     private svc: BilingualPodcastService;
+    private imageFilePaths: string[] = [];
 
     constructor(serviceUrl: string) {
         this.svc = new BilingualPodcastService(serviceUrl);
     }
 
-    async run(prompt: string): Promise<void> {
+    async run(prompt: string, imageSearchQuery: string): Promise<void> {
         const isHealthy = await this.svc.checkHealth();
     
         if (!isHealthy) {
             console.error('🚑 Service health check failed. Aborting podcast video processing.');
             return;
         }
+
+        const imageDownloader = new ImageDownloader(imageSearchQuery, 5);
+        const imagesBuffer = await imageDownloader.downloadAllImages();
+        console.log(`Downloaded ${imagesBuffer.length} images for query "${imageSearchQuery}"`);
+
+        // Save the image buffers as temporary files
+        this.imageFilePaths = imagesBuffer.map((buffer, index) => {
+            const tmpDir = os.tmpdir();
+            const filePath = path.join(tmpDir, `temp_image_${index}.jpg`);
+            fs.writeFileSync(filePath, buffer);
+            return filePath;
+        });
     
         const response = await this.svc.createAndWaitForPodcast(prompt);
         await this.handlePodcastResponse(response);
@@ -95,13 +111,7 @@ export class PodcastVideoProcessor {
             endTime: clip.endTime,
             speechFilePath,
             musicFilePath: './sample-data/emo.mp3',
-            imageFilePaths: [
-                './sample_data/puppy_0.jpg',
-                './sample_data/puppy_1.jpg',
-                './sample_data/puppy_2.jpg',
-                './sample_data/puppy_4.jpg',
-                './sample_data/puppy_5.jpg'
-            ],
+            imageFilePaths: this.imageFilePaths,
             textData: words,
             duration: words[words.length - 1].end,
             fps: 2,
@@ -115,9 +125,15 @@ export class PodcastVideoProcessor {
     }
 
     private async getVideoCreationOptions(clips: Clip[]): Promise<VideoCreationOptions[]> {
-        const optionPromises = clips.map((clip, index) => this.processClip(clip, index + 1));
-        const options = await Promise.all(optionPromises);
-        const validOptions = options.filter((opt): opt is VideoCreationOptions => opt !== null);
+        const validOptions: VideoCreationOptions[] = [];
+
+        for (let index = 0; index < clips.length; index++) {
+            const clip = clips[index];
+            const option = await this.processClip(clip, index + 1);
+            if (option !== null) {
+                validOptions.push(option);
+            }
+        }
 
         console.log(`Filtered out ${clips.length - validOptions.length} clips with existing videos.`);
         return validOptions;
