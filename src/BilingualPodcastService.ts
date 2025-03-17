@@ -38,7 +38,7 @@ interface PodcastResponse {
 class BilingualPodcastService {
   private apiUrl: string;
 
-  constructor(apiUrl: string) {
+  constructor(apiUrl: string = 'https://http-bairingaru-okane-production-80.schnworks.com') {
     this.apiUrl = apiUrl;
   }
 

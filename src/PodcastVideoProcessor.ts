@@ -32,8 +32,8 @@ export class PodcastVideoOrchestrator {
     private svc: BilingualPodcastService;
     private processor: PodcastVideoProcessor;
 
-    constructor(serviceUrl: string) {
-        this.svc = new BilingualPodcastService(serviceUrl);
+    constructor() {
+        this.svc = new BilingualPodcastService();
         this.processor = new PodcastVideoProcessor(this.svc);
     }
 
