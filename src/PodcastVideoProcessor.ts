@@ -37,13 +37,21 @@ export class PodcastVideoOrchestrator {
         this.processor = new PodcastVideoProcessor(this.svc);
     }
 
-    async run(prompt: string, imageSearchQuery: string): Promise<void> {
+    async run(prompt: string): Promise<void> {
         if (!(await this.processor.checkServiceHealth())) return;
 
+        const response = await this.processor.generatePodcast(prompt);
+
+        const imageSearchQuery = await this.extractImageSearchQuery(response?.choices[0].message)
         await this.processor.prepareImages(imageSearchQuery);
 
-        const response = await this.processor.generatePodcast(prompt);
         await this.processor.handlePodcastResponse(response);
+    }
+
+    async extractImageSearchQuery(a: any): Promise<string> {
+        console.log(a)
+
+        return ''
     }
 }
 
@@ -138,7 +146,7 @@ class PodcastVideoProcessor {
             imageFilePaths: this.imageFilePaths,
             textData: words,
             duration: words[words.length - 1].end,
-            fps: 2,
+            fps: 24,
             videoSize: [1920, 1080],
             textConfig: {
                 font_color: 'white',
