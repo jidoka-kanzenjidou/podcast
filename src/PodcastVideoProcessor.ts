@@ -6,6 +6,10 @@ import os from "os";
 import path from "path";
 import { extractWords } from "./utils/words.js"
 
+interface PodcastContent {
+    translated: string;
+    original: string;
+  }
 interface Word {
     word: string;
     start: number;
@@ -25,7 +29,7 @@ interface Clip {
 }
 
 interface PodcastResponse {
-    choices: { message: { audio: { data: string; buffer?: Buffer; trimmed: Clip[] } } }[];
+    choices: { message: {content: PodcastContent[]; audio: { data: string; buffer?: Buffer; trimmed: Clip[] } } }[];
 }
 
 export class PodcastVideoOrchestrator {
@@ -42,14 +46,18 @@ export class PodcastVideoOrchestrator {
 
         const response = await this.processor.generatePodcast(prompt);
 
-        const imageSearchQuery = await this.extractImageSearchQuery(response?.choices[0].message)
-        await this.processor.prepareImages(imageSearchQuery);
+        if (response?.choices[0].message.content) {
+            const imageSearchQuery = await this.extractImageSearchQuery(response?.choices[0].message.content)
+            await this.processor.prepareImages(imageSearchQuery);
 
-        await this.processor.handlePodcastResponse(response);
+            await this.processor.handlePodcastResponse(response);
+        }
     }
 
-    async extractImageSearchQuery(a: any): Promise<string> {
-        console.log(a)
+    async extractImageSearchQuery(content: PodcastContent[]): Promise<string> {
+        console.log(content.map((podcastContent: PodcastContent) => {
+            return podcastContent.translated
+        }).join("\n"))
 
         return ''
     }
