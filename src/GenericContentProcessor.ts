@@ -4,7 +4,7 @@ import { ImageDownloader } from "./ImageDownloader.js";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { extractWords } from "./utils/words.js"
+import { extractWords } from "./utils/words.js";
 
 interface PodcastContent {
     translated: string;
@@ -22,19 +22,19 @@ interface Segment {
 
 interface Clip {
     segments: Segment[];
+    query: string;
     startTime: number;
     endTime: number;
     audioBase64: string;
-    audioBuffer?: Buffer,
+    audioBuffer?: Buffer;
 }
 
 interface PodcastResponse {
     choices: { message: { content: PodcastContent[]; audio: { data: string; buffer?: Buffer; trimmed: Clip[] } } }[];
 }
 
-export class PodcastContentProcessor {
+export class GenericContentProcessor {
     private svc: BilingualPodcastService;
-    private imageFilePaths: string[] = [];
 
     constructor(svc: BilingualPodcastService) {
         this.svc = svc;
@@ -51,35 +51,35 @@ export class PodcastContentProcessor {
         return isHealthy;
     }
 
-    async prepareImages(query: string): Promise<string[]> {
-        console.debug(`📥 Preparing images for query: "${query}"`);
+    async fetchImages(query: string): Promise<string[]> {
+        console.debug(`📥 Fetching images for query: "${query}"`);
         const imageDownloader = new ImageDownloader(query, 12);
         const imagesBuffer = await imageDownloader.downloadAllImages();
 
-        this.imageFilePaths = imagesBuffer.map((buffer, index) => {
+        const imageFilePaths = imagesBuffer.map((buffer, index) => {
             const tmpDir = os.tmpdir();
-            const filePath = path.join(tmpDir, `temp_image_${index}.jpg`);
+            const filePath = path.join(tmpDir, `temp_image_${query.replace(/\s+/g, '_')}_${index}.jpg`);
             fs.writeFileSync(filePath, buffer);
-            console.debug(`💾 Saved image ${index} at ${filePath}`);
+            console.debug(`💾 Saved image ${index} for query "${query}" at ${filePath}`);
             return filePath;
         });
 
-        return this.imageFilePaths;
+        return imageFilePaths;
     }
 
-    async generatePodcast(prompt: string): Promise<PodcastResponse | null> {
-        console.debug('🎤 Generating podcast for prompt:', prompt);
+    async generateContent(prompt: string): Promise<PodcastResponse | null> {
+        console.debug('🎤 Generating content for prompt:', prompt);
         const response = await this.svc.createAndWaitForPodcast(prompt);
         if (response) {
-            console.debug('✅ Podcast generated.');
+            console.debug('✅ Content generated.');
         } else {
-            console.error('❌ Podcast generation failed.');
+            console.error('❌ Content generation failed.');
         }
         return response;
     }
 
-    extractClips(response: PodcastResponse | null): Clip[] {
-        console.debug('🔎 Extracting clips...');
+    extractClipsFromResponse(response: PodcastResponse | null): Clip[] {
+        console.debug('🔎 Extracting clips from response...');
         const audioBuffer = Buffer.from(response?.choices[0].message.audio.data || '', 'base64');
         return (response?.choices[0].message.audio.trimmed || []).map((clip, idx) => ({
             ...clip,
@@ -87,13 +87,13 @@ export class PodcastContentProcessor {
         }));
     }
 
-    private saveAudioFile(clip: Clip, filePath: string): void {
-        console.debug(`💽 Saving audio for clip to ${filePath}`);
+    private saveAudioToFile(clip: Clip, filePath: string): void {
+        console.debug(`💽 Saving audio to ${filePath}`);
         fs.writeFileSync(filePath, clip.audioBuffer || '');
     }
 
-    async processClip(clip: Clip, clipIndex: number): Promise<VideoCreationOptions | null> {
-        console.debug(`🔨 Processing clip ${clipIndex}...`);
+    async createVideoOptionsFromClip(clip: Clip, clipIndex: number): Promise<VideoCreationOptions | null> {
+        console.debug(`🔨 Creating video options from clip ${clipIndex}...`);
         const outputFilePath = `./te-${clipIndex}.mp4`;
 
         if (fs.existsSync(outputFilePath)) {
@@ -103,14 +103,16 @@ export class PodcastContentProcessor {
 
         const words = extractWords(clip);
         const speechFilePath = `speech-${clipIndex}.aac`;
-        this.saveAudioFile(clip, speechFilePath);
+        this.saveAudioToFile(clip, speechFilePath);
+
+        const imageFilePaths = await this.fetchImages(clip.query);
 
         return {
             startTime: clip.startTime,
             endTime: clip.endTime,
             speechFilePath,
             musicFilePath: './sample-data/emo.mp3',
-            imageFilePaths: this.imageFilePaths,
+            imageFilePaths,
             textData: words,
             duration: words[words.length - 1]?.end || clip.endTime,
             fps: 2,
@@ -123,12 +125,12 @@ export class PodcastContentProcessor {
         };
     }
 
-    async getVideoCreationOptions(clips: Clip[]): Promise<VideoCreationOptions[]> {
-        console.debug('📋 Generating video creation options...');
+    async compileVideoCreationOptions(clips: Clip[]): Promise<VideoCreationOptions[]> {
+        console.debug('📋 Compiling video creation options...');
         const options: VideoCreationOptions[] = [];
 
         for (let i = 0; i < clips.length; i++) {
-            const option = await this.processClip(clips[i], i + 1);
+            const option = await this.createVideoOptionsFromClip(clips[i], i + 1);
             if (option) {
                 options.push(option);
             }

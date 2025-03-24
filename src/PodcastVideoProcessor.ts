@@ -1,6 +1,6 @@
 import BilingualPodcastService from "./BilingualPodcastService.js";
 import { FindBestKeywordService } from "./FindBestKeywordService.js";
-import { PodcastContentProcessor } from "./PodcastContentProcessor.js";
+import { GenericContentProcessor } from "./GenericContentProcessor.js";
 import { PodcastVideoManager } from "./PodcastVideoManager.js";
 import path from "path";
 
@@ -19,7 +19,7 @@ export class PodcastVideoProcessor {
 
     async processPodcastToVideo(prompt: string) {
         const svc = new BilingualPodcastService();
-        const contentProcessor = new PodcastContentProcessor(svc);
+        const contentProcessor = new GenericContentProcessor(svc);
         const videoManager = new PodcastVideoManager();
 
         if (!await contentProcessor.checkServiceHealth()) return;
@@ -27,15 +27,18 @@ export class PodcastVideoProcessor {
         const query = await this.extractImageSearchQuery(prompt);
         if (!query) return;
 
-        await contentProcessor.prepareImages(query);
-
-        const response = await contentProcessor.generatePodcast(prompt);
+        const response = await contentProcessor.generateContent(prompt);
         if (!response) return;
 
-        const clips = contentProcessor.extractClips(response);
+        const clips = contentProcessor.extractClipsFromResponse(response).map(clip=>{
+            return {
+                ...clip,
+                query: query,
+            }
+        });
         if (clips.length === 0) return;
 
-        const videoOptions = await contentProcessor.getVideoCreationOptions(clips);
+        const videoOptions = await contentProcessor.compileVideoCreationOptions(clips);
         if (videoOptions.length === 0) return;
 
         // Convert output paths to absolute paths
@@ -48,5 +51,7 @@ export class PodcastVideoProcessor {
         await videoManager.processVideos(absVideoOptions, finalOutputPath);
 
         console.log(`🚀 Podcast video processing complete. Output: ${finalOutputPath}`);
+
+        return finalOutputPath
     }
 }

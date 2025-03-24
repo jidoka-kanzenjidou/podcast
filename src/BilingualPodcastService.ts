@@ -13,6 +13,7 @@ interface PodcastAudioSegment {
   startTime: number;
   endTime: number;
   audioBase64: string;
+  query: string;
 }
 
 interface PodcastMessage {
