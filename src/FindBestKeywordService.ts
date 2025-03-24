@@ -1,17 +1,12 @@
 // src/FindBestKeywordService.ts
 
 import axios, { AxiosInstance } from 'axios';
-
-interface FindBestKeywordResponse {
-  success: boolean;
-  data?: {
-    data: {
-      status: 'processing' | 'failed' | 'completed';
-      result?: any;
-    }
-  };
-  error?: string;
-}
+import type {
+  PostFindBestKeywordResponse,
+  GetFindBestKeywordResponse,
+  FindBestKeywordJob,
+  PostFindBestKeywordResponseError,
+} from './types/findBestKeywordRouter.d.ts';
 
 export class FindBestKeywordService {
   private apiClient: AxiosInstance;
@@ -33,16 +28,13 @@ export class FindBestKeywordService {
    * @param prompt The prompt for which you want to find the best keyword.
    * @returns A Promise containing the job creation response, including the jobId.
    */
-  async startFindBestKeywordJob(prompt: string): Promise<FindBestKeywordResponse> {
+  async startFindBestKeywordJob(prompt: string): Promise<PostFindBestKeywordResponse> {
     try {
-      const response = await this.apiClient.post('/v1/find-best-keyword', { prompt });
+      const response = await this.apiClient.post<PostFindBestKeywordResponse>('/v1/find-best-keyword', { prompt });
 
       if (response.status === 200 || response.status === 201 || response.status === 202) {
         console.log('✅ Job started successfully:', response.data);
-        return {
-          success: true,
-          data: response.data,
-        };
+        return response.data;
       } else {
         console.warn(`⚠️ Unexpected response status: ${response.status}`);
         return {
@@ -65,16 +57,13 @@ export class FindBestKeywordService {
    * @param jobId The ID of the job you want to retrieve.
    * @returns A Promise containing the job status and result.
    */
-  async getFindBestKeywordJob(jobId: string): Promise<FindBestKeywordResponse> {
+  async getFindBestKeywordJob(jobId: string): Promise<GetFindBestKeywordResponse> {
     try {
-      const response = await this.apiClient.get(`/v1/find-best-keyword/${jobId}`);
+      const response = await this.apiClient.get<GetFindBestKeywordResponse>(`/v1/find-best-keyword/${jobId}`);
 
       if (response.status === 200) {
         console.log(`✅ Retrieved job [${jobId}] status/result:`, response.data);
-        return {
-          success: true,
-          data: response.data,
-        };
+        return response.data;
       } else if (response.status === 404) {
         console.warn(`⚠️ Job ID [${jobId}] not found.`);
         return {
@@ -123,21 +112,21 @@ export class FindBestKeywordService {
       }
 
       try {
-        const result: FindBestKeywordResponse = await this.getFindBestKeywordJob(jobId);
+        const result = await this.getFindBestKeywordJob(jobId);
 
         if (!result.success) {
           return reject(result);
         }
 
-        const jobStatus = result.success;
-        console.log(`🔄 Polling job [${jobId}] status: ${jobStatus}`);
+        const jobData: FindBestKeywordJob = result.data;
+        console.log(`🔄 Polling job [${jobId}] status: ${jobData.status}`);
 
-        if (jobStatus === true && result.data?.data.status === 'completed') {
-          return resolve(result.data?.data.result);
-        } else if (!jobStatus) {
+        if (jobData.status === 'completed') {
+          return resolve(jobData.result);
+        } else if (jobData.status === 'failed') {
           return reject({
             success: false,
-            error: 'Job failed.',
+            error: jobData.error || 'Job failed.',
           });
         } else {
           setTimeout(() => poll(resolve, reject), interval);
@@ -160,21 +149,25 @@ export class FindBestKeywordService {
    * @param timeout Maximum time to poll in milliseconds (default: 60000ms)
    * @returns A Promise containing the final job result or an error.
    */
-  async runFindBestKeyword(prompt: string, interval: number = 3000, timeout: number = 60000): Promise<string> {
+  async runFindBestKeyword(
+    prompt: string,
+    interval: number = 3000,
+    timeout: number = 60000
+  ): Promise<string> {
     try {
       const startResponse = await this.startFindBestKeywordJob(prompt);
 
-      if (!startResponse.success || !startResponse.data?.jobId) {
-        throw new Error(startResponse.error || 'Failed to start the job.')
+      if (!startResponse.success || !startResponse.jobId) {
+        throw new Error((startResponse as PostFindBestKeywordResponseError).error || 'Failed to start the job.');
       }
 
-      const jobId = startResponse.data.jobId;
+      const jobId = startResponse.jobId;
       console.log(`🚀 Started job [${jobId}], now polling...`);
 
       return await this.pollFindBestKeywordJob(jobId, interval, timeout);
     } catch (error: any) {
       console.error('❌ Error running find-best-keyword job:', error.message || error);
-      throw new Error(error.message || 'Unknown error occurred while running the job.')
+      throw new Error(error.message || 'Unknown error occurred while running the job.');
     }
   }
 }
