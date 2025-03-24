@@ -4,7 +4,12 @@ import axios, { AxiosInstance } from 'axios';
 
 interface FindBestKeywordResponse {
   success: boolean;
-  data?: any;
+  data?: {
+    data: {
+      status: 'processing' | 'failed' | 'completed';
+      result?: any;
+    }
+  };
   error?: string;
 }
 
@@ -118,7 +123,7 @@ export class FindBestKeywordService {
       }
 
       try {
-        const result = await this.getFindBestKeywordJob(jobId);
+        const result: FindBestKeywordResponse = await this.getFindBestKeywordJob(jobId);
 
         if (!result.success) {
           return reject(result);
@@ -127,8 +132,8 @@ export class FindBestKeywordService {
         const jobStatus = result.success;
         console.log(`🔄 Polling job [${jobId}] status: ${jobStatus}`);
 
-        if (jobStatus === true) {
-          return resolve(result.data.data.result);
+        if (jobStatus === true && result.data?.data.status === 'completed') {
+          return resolve(result.data?.data.result);
         } else if (!jobStatus) {
           return reject({
             success: false,
