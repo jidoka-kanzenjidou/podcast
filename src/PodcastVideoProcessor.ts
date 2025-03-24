@@ -5,11 +5,12 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { extractWords } from "./utils/words.js"
+import { FindBestKeywordService } from "./FindBestKeywordService.js";
 
 interface PodcastContent {
     translated: string;
     original: string;
-  }
+}
 interface Word {
     word: string;
     start: number;
@@ -29,7 +30,7 @@ interface Clip {
 }
 
 interface PodcastResponse {
-    choices: { message: {content: PodcastContent[]; audio: { data: string; buffer?: Buffer; trimmed: Clip[] } } }[];
+    choices: { message: { content: PodcastContent[]; audio: { data: string; buffer?: Buffer; trimmed: Clip[] } } }[];
 }
 
 export class PodcastVideoOrchestrator {
@@ -42,24 +43,41 @@ export class PodcastVideoOrchestrator {
     }
 
     async run(prompt: string): Promise<void> {
-        if (!(await this.processor.checkServiceHealth())) return;
+        console.debug('🏁 Starting PodcastVideoOrchestrator.run with prompt:', prompt);
+
+        if (!(await this.processor.checkServiceHealth())) {
+            console.debug('❌ Processor service health check failed, aborting run.');
+            return;
+        }
+
+        console.debug('✅ Processor service is healthy. Proceeding to generate podcast.');
 
         const response = await this.processor.generatePodcast(prompt);
+        console.debug('🎙️ Podcast generation response received:', response);
 
-        if (response?.choices[0].message.content) {
-            const imageSearchQuery = await this.extractImageSearchQuery(response?.choices[0].message.content)
-            await this.processor.prepareImages(imageSearchQuery);
+        const imageSearchQuery = await this.extractImageSearchQuery(prompt);
+        console.debug('🔍 Extracted image search query:', imageSearchQuery);
 
-            await this.processor.handlePodcastResponse(response);
+        if (!imageSearchQuery) {
+            console.error('❌ Failed to extract image search query.');
+            throw new Error("Image search query extraction failed");
         }
+
+        await this.processor.prepareImages(imageSearchQuery);
+        console.debug('🖼️ Images prepared for query:', imageSearchQuery);
+
+        await this.processor.handlePodcastResponse(response);
+        console.debug('✅ Podcast response handled successfully.');
     }
 
-    async extractImageSearchQuery(content: PodcastContent[]): Promise<string> {
-        console.log(content.map((podcastContent: PodcastContent) => {
-            return podcastContent.translated
-        }).join("\n"))
+    async extractImageSearchQuery(prompt: string): Promise<string | undefined> {
+        console.debug('🔑 Extracting best keyword for image search from prompt:', prompt);
 
-        return ''
+        const svc = new FindBestKeywordService();
+        const keyword = await svc.runFindBestKeyword(prompt);
+
+        console.debug('🔑 Best keyword extracted:', keyword);
+        return keyword.replace(/^"(.*)"$/, '$1');
     }
 }
 
@@ -72,6 +90,7 @@ class PodcastVideoProcessor {
     }
 
     async checkServiceHealth(): Promise<boolean> {
+        console.debug('🩺 Checking service health...');
         const isHealthy = await this.svc.checkHealth();
 
         if (!isHealthy) {
@@ -79,73 +98,104 @@ class PodcastVideoProcessor {
             return false;
         }
 
+        console.debug('✅ Service health check passed.');
         return true;
     }
 
     async prepareImages(query: string): Promise<void> {
+        console.debug(`📥 Preparing to download images for query "${query}"...`);
+
         const imageDownloader = new ImageDownloader(query, 5);
         const imagesBuffer = await imageDownloader.downloadAllImages();
 
-        console.log(`Downloaded ${imagesBuffer.length} images for query "${query}"`);
+        console.debug(`✅ Downloaded ${imagesBuffer.length} images for query "${query}"`);
 
         this.imageFilePaths = imagesBuffer.map((buffer, index) => {
             const tmpDir = os.tmpdir();
             const filePath = path.join(tmpDir, `temp_image_${index}.jpg`);
             fs.writeFileSync(filePath, buffer);
+
+            console.debug(`💾 Image ${index} saved to ${filePath}`);
             return filePath;
         });
+
+        console.debug('🖼️ Image preparation completed. File paths:', this.imageFilePaths);
     }
 
     async generatePodcast(prompt: string): Promise<PodcastResponse | null> {
-        return await this.svc.createAndWaitForPodcast(prompt);
+        console.debug('🎤 Generating podcast for prompt:', prompt);
+
+        const response = await this.svc.createAndWaitForPodcast(prompt);
+
+        if (response) {
+            console.debug('✅ Podcast generated successfully.');
+        } else {
+            console.error('❌ Failed to generate podcast.');
+        }
+
+        return response;
     }
 
     async handlePodcastResponse(response: PodcastResponse | null): Promise<void> {
+        console.debug('📦 Handling podcast response...');
+
         const clips = this.extractClips(response);
+        console.debug(`🎞️ Extracted ${clips.length} clips from podcast response.`);
 
         if (clips.length === 0) {
-            console.log('No clips to process.');
+            console.warn('⚠️ No clips to process.');
             return;
         }
 
-        console.log(`Processing ${clips.length} clips.`);
-
+        console.debug('⚙️ Processing clips to generate video creation options...');
         const videoOptions = await this.getVideoCreationOptions(clips);
 
         if (videoOptions.length === 0) {
-            console.log('No clips to process after filtering existing files.');
+            console.warn('⚠️ No video options generated after filtering. Exiting.');
             return;
         }
 
+        console.debug(`🚀 Starting video processing for ${videoOptions.length} clips...`);
         await this.processVideos(videoOptions);
     }
 
     private extractClips(response: PodcastResponse | null): Clip[] {
+        console.debug('🔎 Extracting clips from podcast response...');
         const audioBuffer = Buffer.from(response?.choices[0].message.audio.data || '', 'base64');
-        return (response?.choices[0].message.audio.trimmed || []).map((clip: Clip) => {
+
+        const clips = (response?.choices[0].message.audio.trimmed || []).map((clip: Clip, idx) => {
+            console.debug(`🔧 Clip ${idx} extracted:`, clip);
             return {
                 ...clip,
                 audioBuffer,
             };
         });
+
+        return clips;
     }
 
     private saveAudioFile(clip: Clip, filePath: string): void {
+        console.debug(`💽 Saving audio file for clip at ${filePath}`);
         fs.writeFileSync(filePath, clip.audioBuffer || '');
+        console.debug('✅ Audio file saved.');
     }
 
     private async processClip(clip: Clip, clipIndex: number): Promise<VideoCreationOptions | null> {
+        console.debug(`🔨 Processing clip ${clipIndex}...`);
+
         const outputFilePath = `./te-${clipIndex}.mp4`;
         if (fs.existsSync(outputFilePath)) {
-            console.log(`Clip ${clipIndex} already exists, skipping.`);
+            console.warn(`⚠️ Clip ${clipIndex} already exists at ${outputFilePath}, skipping.`);
             return null;
         }
 
         const words: Word[] = extractWords(clip);
-        console.log(words);
+        console.debug(`📝 Extracted words for clip ${clipIndex}:`, words);
+
         const speechFilePath: string = `speech-${clipIndex}.aac`;
         this.saveAudioFile(clip, speechFilePath);
 
+        console.debug(`🎬 Video creation options prepared for clip ${clipIndex}.`);
         return {
             startTime: clip.startTime,
             endTime: clip.endTime,
@@ -165,38 +215,52 @@ class PodcastVideoProcessor {
     }
 
     private async getVideoCreationOptions(clips: Clip[]): Promise<VideoCreationOptions[]> {
+        console.debug('📋 Collecting video creation options from clips...');
+
         const validOptions: VideoCreationOptions[] = [];
 
         for (let index = 0; index < clips.length; index++) {
             const clip = clips[index];
             const option = await this.processClip(clip, index + 1);
+
             if (option !== null) {
                 validOptions.push(option);
+                console.debug(`✅ Video option added for clip ${index + 1}.`);
+            } else {
+                console.debug(`⏭️ Skipped clip ${index + 1}.`);
             }
         }
 
-        console.log(`Filtered out ${clips.length - validOptions.length} clips with existing videos.`);
+        console.debug(`🎯 Final video options count: ${validOptions.length}`);
         return validOptions;
     }
 
     private async processVideos(options: VideoCreationOptions[]): Promise<void> {
         try {
+            console.debug('🚚 Requesting video creations...');
             const correlationIds = await this.requestVideoCreations(options);
+
+            console.debug('⏳ Polling for video completions...');
             await this.pollForVideoCompletions(correlationIds, options.map(opt => opt.outputFilePath));
+
             console.log('🎉 All clips processed and downloaded successfully!');
         } catch (error) {
-            console.error('Processing stopped due to an error:', error);
+            console.error('❌ Processing stopped due to an error:', error);
         }
     }
 
     private async requestVideoCreations(options: VideoCreationOptions[]): Promise<string[]> {
-        return VideoCreationService.bulkRequestVideoCreation(options);
+        console.debug('📨 Sending bulk request for video creation...');
+        const ids = await VideoCreationService.bulkRequestVideoCreation(options);
+        console.debug('✅ Received correlation IDs:', ids);
+        return ids;
     }
 
     private async pollForVideoCompletions(correlationIds: string[], outputFilePaths: string[]): Promise<void> {
+        console.debug('📡 Starting polling for video completions...');
         await VideoCreationService.bulkPollForVideos(correlationIds, outputFilePaths, {
-            maxAttempts: 60 * 20, // 10 minutes assuming 1s delay
-            delay: 1_000, // 1 second
+            maxAttempts: 60 * 20,
+            delay: 1_000,
             onSuccess: (index, filePath) => {
                 console.log(`✅ [Clip ${index + 1}] Video downloaded successfully at ${filePath}`);
             },
@@ -204,5 +268,6 @@ class PodcastVideoProcessor {
                 console.error(`❌ [Clip ${index + 1}] Failed after max attempts. Error: ${error.message}`);
             }
         });
+        console.debug('🏁 Polling for video completions finished.');
     }
 }
