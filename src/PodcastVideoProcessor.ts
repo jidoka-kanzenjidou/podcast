@@ -1,7 +1,7 @@
 import BilingualPodcastService from "genericcontentprocessor.ts/dist/BilingualPodcastService.js"
 import { FindBestKeywordService } from "./FindBestKeywordService.js";
 import { GenericContentProcessor } from "genericcontentprocessor.ts/dist/GenericContentProcessor.js"
-import { PodcastVideoManager } from "./PodcastVideoManager.js";
+import { GenericVideoManager } from "genericcontentprocessor.ts/dist/GenericVideoManager.js"
 import path from "path";
 
 export class PodcastVideoProcessor {
@@ -20,7 +20,7 @@ export class PodcastVideoProcessor {
     async processPodcastToVideo(prompt: string) {
         const svc = new BilingualPodcastService();
         const contentProcessor = new GenericContentProcessor(svc);
-        const videoManager = new PodcastVideoManager();
+        const videoManager = new GenericVideoManager();
 
         if (!await contentProcessor.checkServiceHealth()) return;
 

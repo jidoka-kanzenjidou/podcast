@@ -604,8 +604,8 @@ __metadata:
 
 "genericcontentprocessor.ts@github:qtvhao/GenericContentProcessor.ts":
   version: 1.0.0
-  resolution: "genericcontentprocessor.ts@https://github.com/qtvhao/GenericContentProcessor.ts.git#commit=78904039a62e52b9322ec660004c26e4bf71250b"
-  checksum: 6c5484c98dcc00923431d756d24a5e700cbc0a7550434958b5a1a3e1748e90b7bd2b8191fec1b512b1a3259d8e90882ba24ae89eb5319302ea2af25d92b96726
+  resolution: "genericcontentprocessor.ts@https://github.com/qtvhao/GenericContentProcessor.ts.git#commit=ca36a4ae3635abd0dd5a15e477029599a06d5847"
+  checksum: 9ed488746cc349d230aa34ff2691eb2e147ecefa1c8e007a286da081aa453c570e92c5bf270082cde816b474e3891640192bf0422da0b428a60bedf47efd5e81
   languageName: node
   linkType: hard
 
