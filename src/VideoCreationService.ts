@@ -65,17 +65,19 @@ class VideoCreationService {
     optionsArray: VideoCreationOptions[]
   ): Promise<string[]> {
     try {
-      debugLog("📦 Starting bulk video creation requests...");
+      debugLog("📦 Starting sequential bulk video creation requests...");
 
-      const correlationIdPromises = optionsArray.map(async (options, index) => {
+      const correlationIds: string[] = [];
+
+      for (let index = 0; index < optionsArray.length; index++) {
+        const options = optionsArray[index];
         debugLog(`📝 Processing request ${index + 1} of ${optionsArray.length}`);
         const absPaths = this.validateAndResolveFiles(options);
         const formData = this.prepareFormData(options, absPaths);
         const correlationId = await this.requestVideoCreation(formData);
-        return correlationId;
-      });
 
-      const correlationIds = await Promise.all(correlationIdPromises);
+        correlationIds.push(correlationId);
+      }
 
       debugLog("✅ Bulk video creation requests submitted successfully.");
       debugLog("Correlation IDs:");

@@ -2,6 +2,7 @@ import BilingualPodcastService from "./BilingualPodcastService.js";
 import { FindBestKeywordService } from "./FindBestKeywordService.js";
 import { PodcastContentProcessor } from "./PodcastContentProcessor.js";
 import { PodcastVideoManager } from "./PodcastVideoManager.js";
+import path from "path";
 
 export class PodcastVideoProcessor {
     private async extractImageSearchQuery(prompt: string): Promise<string | undefined> {
@@ -23,20 +24,29 @@ export class PodcastVideoProcessor {
 
         if (!await contentProcessor.checkServiceHealth()) return;
 
-        const query = await this.extractImageSearchQuery(prompt)
-        if (query) {
-            await contentProcessor.prepareImages(query);
+        const query = await this.extractImageSearchQuery(prompt);
+        if (!query) return;
 
-            const response = await contentProcessor.generatePodcast(prompt);
-            if (!response) return;
+        await contentProcessor.prepareImages(query);
 
-            const clips = contentProcessor.extractClips(response);
-            if (clips.length === 0) return;
+        const response = await contentProcessor.generatePodcast(prompt);
+        if (!response) return;
 
-            const videoOptions = await contentProcessor.getVideoCreationOptions(clips);
-            if (videoOptions.length === 0) return;
+        const clips = contentProcessor.extractClips(response);
+        if (clips.length === 0) return;
 
-            await videoManager.processVideos(videoOptions);
-        }
+        const videoOptions = await contentProcessor.getVideoCreationOptions(clips);
+        if (videoOptions.length === 0) return;
+
+        // Convert output paths to absolute paths
+        const absVideoOptions = videoOptions.map(option => ({
+            ...option,
+            outputFilePath: path.resolve(option.outputFilePath)
+        }));
+
+        const finalOutputPath = path.resolve(`./output/final_podcast_video_${Date.now()}.mp4`);
+        await videoManager.processVideos(absVideoOptions, finalOutputPath);
+
+        console.log(`🚀 Podcast video processing complete. Output: ${finalOutputPath}`);
     }
 }
