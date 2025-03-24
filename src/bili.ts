@@ -1,4 +1,4 @@
-import { PodcastVideoOrchestrator } from "./PodcastVideoProcessor.js";
+import { PodcastVideoOrchestrator } from "./PodcastVideoOrchestrator.js";
 
 const topic = 'prompt-to-video-dispatch';
 
