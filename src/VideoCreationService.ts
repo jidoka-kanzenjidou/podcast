@@ -1,6 +1,6 @@
 // Feature flag array
 const FEATURE_FLAGS = {
-  DEBUG_LOGGING: false, // Toggle debug logging here!
+  DEBUG_LOGGING: process.platform === 'darwin', // Toggle debug logging here!
 };
 
 // Debug log helper
