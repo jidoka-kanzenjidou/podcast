@@ -48,7 +48,7 @@ export class ImageDownloader {
 
       return buffer;
     } catch (error) {
-      console.error(`Failed to download image ${index + 1}:`, error);
+      console.error(`Failed to download image ${index + 1}:`, (error as Error).message);
       return null;
     }
   }
@@ -61,8 +61,8 @@ export class ImageDownloader {
       let timeoutMs: number | undefined;
 
       // Apply 5-second timeout to the second image (index 1)
-      if (index === 1) {
-        timeoutMs = 5000;
+      if (index > 0) {
+        timeoutMs = 60_000;
         console.log(`Applying 5-second timeout for image ${index + 1}`);
       }
 

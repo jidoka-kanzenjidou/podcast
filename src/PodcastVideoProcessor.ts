@@ -77,7 +77,9 @@ export class PodcastVideoOrchestrator {
         const keyword = await svc.runFindBestKeyword(prompt);
 
         console.debug('🔑 Best keyword extracted:', keyword);
-        return keyword.replace(/^"(.*)"$/, '$1');
+        return keyword
+            .trim()
+            .replace(/^"(.*)"$/, '$1');
     }
 }
 
