@@ -105,7 +105,7 @@ class PodcastVideoProcessor {
     async prepareImages(query: string): Promise<void> {
         console.debug(`📥 Preparing to download images for query "${query}"...`);
 
-        const imageDownloader = new ImageDownloader(query, 5);
+        const imageDownloader = new ImageDownloader(query, 12);
         const imagesBuffer = await imageDownloader.downloadAllImages();
 
         console.debug(`✅ Downloaded ${imagesBuffer.length} images for query "${query}"`);

@@ -16,7 +16,7 @@ export class ImageDownloader {
   }
 
   // Download a single image by index and return its buffer
-  private async downloadImage(index: number): Promise<Buffer | null> {
+  private async downloadImage(index: number, timeoutMs?: number): Promise<Buffer | null> {
     const params = {
       query: this.searchQuery,
       limit: this.limit,
@@ -29,6 +29,10 @@ export class ImageDownloader {
       responseType: 'arraybuffer', // get binary data
       params: params,
     };
+
+    if (timeoutMs) {
+      config.timeout = timeoutMs; // Set timeout if provided
+    }
 
     try {
       const response = await axios.get(this.baseUrl, config);
@@ -54,10 +58,19 @@ export class ImageDownloader {
     const imageBuffers: Buffer[] = [];
 
     for (let index = 0; index < this.limit; index++) {
-      const buffer = await this.downloadImage(index);
+      let timeoutMs: number | undefined;
+
+      // Apply 5-second timeout to the second image (index 1)
+      if (index === 1) {
+        timeoutMs = 5000;
+        console.log(`Applying 5-second timeout for image ${index + 1}`);
+      }
+
+      const buffer = await this.downloadImage(index, timeoutMs);
       if (buffer) {
         imageBuffers.push(buffer);
       }
+
       await this.sleep(1000); // Wait 1 second between requests
     }
 
