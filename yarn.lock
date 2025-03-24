@@ -70,21 +70,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:*":
+"@types/node@npm:*, @types/node@npm:^22.13.9":
   version: 22.13.13
   resolution: "@types/node@npm:22.13.13"
   dependencies:
     undici-types: ~6.20.0
   checksum: 763c120725c4817227d3043095fd1e764744b2f3632e3e3c8242e1620a8e6fe1c9eeae38074dee3e39af6b890de142c3b6067f9b31e36635c44f3f5f4f2bb8cf
-  languageName: node
-  linkType: hard
-
-"@types/node@npm:^22.13.9":
-  version: 22.13.11
-  resolution: "@types/node@npm:22.13.11"
-  dependencies:
-    undici-types: ~6.20.0
-  checksum: 82d8e0ff385ddcdd0c4d07967ae1e1bbadf3b26143fbf9e16b35652c6080fd783333e9fc828188d8918e03c526433de6b5c0eaa07374873801982251568da030
   languageName: node
   linkType: hard
 
@@ -611,6 +602,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"genericcontentprocessor.ts@github:qtvhao/GenericContentProcessor.ts":
+  version: 1.0.0
+  resolution: "genericcontentprocessor.ts@https://github.com/qtvhao/GenericContentProcessor.ts.git#commit=78904039a62e52b9322ec660004c26e4bf71250b"
+  checksum: 6c5484c98dcc00923431d756d24a5e700cbc0a7550434958b5a1a3e1748e90b7bd2b8191fec1b512b1a3259d8e90882ba24ae89eb5319302ea2af25d92b96726
+  languageName: node
+  linkType: hard
+
 "get-intrinsic@npm:^1.2.4, get-intrinsic@npm:^1.2.5, get-intrinsic@npm:^1.2.6, get-intrinsic@npm:^1.3.0":
   version: 1.3.0
   resolution: "get-intrinsic@npm:1.3.0"
@@ -963,6 +961,7 @@ __metadata:
     axios: ^1.8.2
     dotenv: ^16.4.7
     express: ^4.21.2
+    genericcontentprocessor.ts: "github:qtvhao/GenericContentProcessor.ts"
     minio: ^8.0.5
     multer: ^1.4.5-lts.2
     typescript: ^5.8.2

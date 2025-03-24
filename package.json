@@ -21,6 +21,7 @@
     "axios": "^1.8.2",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "genericcontentprocessor.ts": "github:qtvhao/GenericContentProcessor.ts",
     "minio": "^8.0.5",
     "multer": "^1.4.5-lts.2",
     "typescript": "^5.8.2"

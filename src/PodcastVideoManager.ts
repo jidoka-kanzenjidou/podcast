@@ -1,4 +1,4 @@
-import VideoCreationService, { VideoCreationOptions } from "./VideoCreationService.js";
+import VideoCreationService, { VideoCreationOptions } from "genericcontentprocessor.ts/dist/VideoCreationService.js";
 import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
