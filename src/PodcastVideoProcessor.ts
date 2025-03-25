@@ -6,6 +6,16 @@ import path from "path";
 import fs from "fs";
 import { Storage } from "./utils/storage.js";
 
+export interface PodcastContentItem {
+    translated: string;
+    original: string;
+}
+
+export interface PodcastVideoResult {
+    fileKey: string;
+    content: PodcastContentItem[];
+}
+
 export class PodcastVideoProcessor {
     private storage: Storage;
 
@@ -25,7 +35,7 @@ export class PodcastVideoProcessor {
             .replace(/^"(.*)"$/, '$1');
     }
 
-    async processPodcastToVideo(prompt: string): Promise<string | null> {
+    async processPodcastToVideo(prompt: string): Promise<PodcastVideoResult | null> {
         const svc = new BilingualPodcastService();
         const contentProcessor = new GenericContentProcessor(svc);
         const videoManager = new GenericVideoManager();
@@ -58,6 +68,7 @@ export class PodcastVideoProcessor {
             fs.mkdirSync(outputDir, { recursive: true });
         }
 
+        const completionContent = response.choices[0].message.content
         const finalOutputPath = path.resolve(outputDir, `final_podcast_video_${Date.now()}.mp4`);
         await videoManager.processVideos(absVideoOptions, finalOutputPath);
 
@@ -66,6 +77,9 @@ export class PodcastVideoProcessor {
         const uploadedFileKey = await this.storage.uploadFile(path.basename(finalOutputPath), finalOutputPath);
         console.log(`☁️ Video uploaded to storage with key: ${uploadedFileKey}`);
 
-        return uploadedFileKey;
+        return {
+            fileKey: uploadedFileKey,
+            content: completionContent
+        };
     }
 }
