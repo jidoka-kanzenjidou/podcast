@@ -6,9 +6,15 @@ const topic = 'prompt-to-video-dispatch';
 startKafkaConsumer({
     topic,
     groupId: 'prompt2video-consumer',
-    eachMessageHandler: async (payload: EachMessagePayload) => {
-        console.log(payload.message.value)
-        console.log(payload.message.value?.toJSON())
+    eachMessageHandler: async ({ message }) => {
+        const value = message.value?.toString();
+        console.log("Received message:", value);
+
+        try {
+            const json = JSON.parse(value || '');
+            console.log("Parsed JSON:", json);
+        } catch (err) {
+            console.error("Message is not valid JSON");
+        }
     }
 });
-
