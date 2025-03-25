@@ -9,7 +9,7 @@ export class PodcastVideoProcessor {
         console.debug('🔑 Extracting best keyword for image search from prompt:', prompt);
 
         const svc = new FindBestKeywordService();
-        const keyword = await svc.runFindBestKeyword(prompt);
+        const keyword = await svc.runFindBestKeyword(prompt, 3_000, 5 * 60_000);
 
         console.debug('🔑 Best keyword extracted:', keyword);
         return keyword
@@ -17,18 +17,18 @@ export class PodcastVideoProcessor {
             .replace(/^"(.*)"$/, '$1');
     }
 
-    async processPodcastToVideo(prompt: string) {
+    async processPodcastToVideo(prompt: string): Promise<string | null> {
         const svc = new BilingualPodcastService();
         const contentProcessor = new GenericContentProcessor(svc);
         const videoManager = new GenericVideoManager();
 
-        if (!await contentProcessor.checkServiceHealth()) return;
+        if (!await contentProcessor.checkServiceHealth()) return null;
 
         const query = await this.extractImageSearchQuery(prompt);
-        if (!query) return;
+        if (!query) return null;
 
         const response = await contentProcessor.generateContent(prompt);
-        if (!response) return;
+        if (!response) return null;
 
         const clips = contentProcessor.extractClipsFromResponse(response).map(clip=>{
             return {
@@ -36,10 +36,10 @@ export class PodcastVideoProcessor {
                 query: query,
             }
         });
-        if (clips.length === 0) return;
+        if (clips.length === 0) return null;
 
         const videoOptions = await contentProcessor.compileVideoCreationOptions(clips);
-        if (videoOptions.length === 0) return;
+        if (videoOptions.length === 0) return null;
 
         // Convert output paths to absolute paths
         const absVideoOptions = videoOptions.map(option => ({
