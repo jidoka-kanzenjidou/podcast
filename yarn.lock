@@ -429,7 +429,7 @@ finalhandler@1.3.1:
 
 "findbestkeywordservice.ts@github:qtvhao/FindBestKeywordService.ts":
   version "1.0.0"
-  resolved "https://codeload.github.com/qtvhao/FindBestKeywordService.ts/tar.gz/c86068f05ccdfc7d794680be3bad8609df0e2445"
+  resolved "https://codeload.github.com/qtvhao/FindBestKeywordService.ts/tar.gz/e9149357eecc22bc4c19455834f8b1bc7d99b91e"
 
 follow-redirects@^1.15.6:
   version "1.15.9"
