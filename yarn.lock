@@ -785,6 +785,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"kafkajs@npm:^2.2.4":
+  version: 2.2.4
+  resolution: "kafkajs@npm:2.2.4"
+  checksum: 83e9e8bc50a09b142f4ff79f6a2bd88ecc21b83bcefe6621ab1716118d624886befb7371731274f67812ce35dd50b53140ff3b49a06e5d9169fe6b164d72fea5
+  languageName: node
+  linkType: hard
+
 "lodash@npm:^4.17.21":
   version: 4.17.21
   resolution: "lodash@npm:4.17.21"
@@ -970,6 +977,7 @@ __metadata:
     express: ^4.21.2
     findbestkeywordservice.ts: "github:qtvhao/FindBestKeywordService.ts"
     genericcontentprocessor.ts: "github:qtvhao/GenericContentProcessor.ts"
+    kafkajs: ^2.2.4
     minio: ^8.0.5
     multer: ^1.4.5-lts.2
     typescript: ^5.8.2
