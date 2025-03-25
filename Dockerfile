@@ -8,13 +8,14 @@ WORKDIR /app
 COPY yarn.lock package.json ./
 
 # Install dependencies
-RUN yarn install
+RUN yarn
 
 # Copy the rest of the application
-COPY . .
+COPY src src
+COPY tsconfig.json .
 
 # Build TypeScript files
-RUN yarn build
+RUN npx tsc
 
 # Set environment variables (optional)
 ENV NODE_ENV=production

@@ -1,5 +1,5 @@
 import { EachMessagePayload } from "kafkajs";
-import { startKafkaConsumer } from "./kafka/kafkaConsumer";
+import { startKafkaConsumer } from "./kafka/kafkaConsumer.js";
 
 const topic = 'prompt-to-video-dispatch';
 
@@ -11,3 +11,4 @@ startKafkaConsumer({
         console.log(payload.message.value?.toJSON())
     }
 });
+
