@@ -550,6 +550,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"findbestkeywordservice.ts@github:qtvhao/FindBestKeywordService.ts":
+  version: 1.0.0
+  resolution: "findbestkeywordservice.ts@https://github.com/qtvhao/FindBestKeywordService.ts.git#commit=c86068f05ccdfc7d794680be3bad8609df0e2445"
+  checksum: db56b30b41f125e7f8c50233c8b109c292158c9e852de1cf776ee12f900c7121562428f0504f66cd8ad5a03ec8ad7f6df5c14a115d6ec3559dbccb8f84033222
+  languageName: node
+  linkType: hard
+
 "follow-redirects@npm:^1.15.6":
   version: 1.15.9
   resolution: "follow-redirects@npm:1.15.9"
@@ -961,6 +968,7 @@ __metadata:
     axios: ^1.8.2
     dotenv: ^16.4.7
     express: ^4.21.2
+    findbestkeywordservice.ts: "github:qtvhao/FindBestKeywordService.ts"
     genericcontentprocessor.ts: "github:qtvhao/GenericContentProcessor.ts"
     minio: ^8.0.5
     multer: ^1.4.5-lts.2

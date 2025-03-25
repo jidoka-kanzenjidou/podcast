@@ -1,5 +1,5 @@
 import BilingualPodcastService from "genericcontentprocessor.ts/dist/BilingualPodcastService.js"
-import { FindBestKeywordService } from "./FindBestKeywordService.js";
+import { FindBestKeywordService } from "findbestkeywordservice.ts/dist/FindBestKeywordService.js"
 import { GenericContentProcessor } from "genericcontentprocessor.ts/dist/GenericContentProcessor.js"
 import { GenericVideoManager } from "genericcontentprocessor.ts/dist/GenericVideoManager.js"
 import path from "path";
