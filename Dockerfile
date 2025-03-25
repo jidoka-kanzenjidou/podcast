@@ -12,6 +12,7 @@ RUN yarn
 
 # Copy the rest of the application
 COPY src src
+COPY sample-data sample-data
 COPY tsconfig.json .
 
 # Build TypeScript files
