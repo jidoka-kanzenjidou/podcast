@@ -3,8 +3,16 @@ import { FindBestKeywordService } from "findbestkeywordservice.ts/dist/FindBestK
 import { GenericContentProcessor } from "genericcontentprocessor.ts/dist/GenericContentProcessor.js"
 import { GenericVideoManager } from "genericcontentprocessor.ts/dist/GenericVideoManager.js"
 import path from "path";
+import fs from "fs";
+import { Storage } from "./utils/storage.js";
 
 export class PodcastVideoProcessor {
+    private storage: Storage;
+
+    constructor() {
+        this.storage = new Storage();
+    }
+
     private async extractImageSearchQuery(prompt: string): Promise<string | undefined> {
         console.debug('🔑 Extracting best keyword for image search from prompt:', prompt);
 
@@ -30,12 +38,10 @@ export class PodcastVideoProcessor {
         const response = await contentProcessor.generateContent(prompt);
         if (!response) return null;
 
-        const clips = contentProcessor.extractClipsFromResponse(response).map(clip=>{
-            return {
-                ...clip,
-                query: query,
-            }
-        });
+        const clips = contentProcessor.extractClipsFromResponse(response).map(clip => ({
+            ...clip,
+            query: query,
+        }));
         if (clips.length === 0) return null;
 
         const videoOptions = await contentProcessor.compileVideoCreationOptions(clips);
@@ -47,11 +53,19 @@ export class PodcastVideoProcessor {
             outputFilePath: path.resolve(option.outputFilePath)
         }));
 
-        const finalOutputPath = path.resolve(`./output/final_podcast_video_${Date.now()}.mp4`);
+        const outputDir = path.resolve('./output');
+        if (!fs.existsSync(outputDir)) {
+            fs.mkdirSync(outputDir, { recursive: true });
+        }
+
+        const finalOutputPath = path.resolve(outputDir, `final_podcast_video_${Date.now()}.mp4`);
         await videoManager.processVideos(absVideoOptions, finalOutputPath);
 
         console.log(`🚀 Podcast video processing complete. Output: ${finalOutputPath}`);
 
-        return finalOutputPath
+        const uploadedFileKey = await this.storage.uploadFile(path.basename(finalOutputPath), finalOutputPath);
+        console.log(`☁️ Video uploaded to storage with key: ${uploadedFileKey}`);
+
+        return uploadedFileKey;
     }
 }

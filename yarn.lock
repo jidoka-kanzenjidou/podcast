@@ -470,7 +470,7 @@ function-bind@^1.1.2:
 
 "genericcontentprocessor.ts@github:qtvhao/GenericContentProcessor.ts":
   version "1.0.0"
-  resolved "https://codeload.github.com/qtvhao/GenericContentProcessor.ts/tar.gz/ca36a4ae3635abd0dd5a15e477029599a06d5847"
+  resolved "https://codeload.github.com/qtvhao/GenericContentProcessor.ts/tar.gz/a9d2a204b35c613baef11c695f29f283f97a98e0"
 
 get-intrinsic@^1.2.4, get-intrinsic@^1.2.5, get-intrinsic@^1.2.6, get-intrinsic@^1.3.0:
   version "1.3.0"
