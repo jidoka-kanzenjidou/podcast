@@ -53,7 +53,7 @@ async function handlePromptToVideoTask(payload: PromptPayload) {
 
 startKafkaConsumer({
     topic,
-    groupId: 'prompt2video-consumer',
+    groupId: `prompt2video-consumer-${Date.now()}`,
     eachMessageHandler: async ({ message }: EachMessagePayload) => {
         const value = message.value?.toString() || '';
         console.log("📩 Received message:", value);
