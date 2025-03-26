@@ -1,6 +1,7 @@
 import { EachMessagePayload } from "kafkajs";
 import { startKafkaConsumer } from "./kafka/kafkaConsumer.js";
 import { PodcastVideoProcessor } from "./PodcastVideoProcessor.js";
+import { sendMessageToQueue } from "./utils/kafkaHelper.js";
 
 interface KafkaMessagePayload {
     taskId?: string;
@@ -43,6 +44,12 @@ startKafkaConsumer({
                 const processor = new PodcastVideoProcessor();
                 const finalOutputPath = await processor.processPodcastToVideo(payload.prompt);
                 console.log(finalOutputPath);
+                if(finalOutputPath) {
+                    await sendMessageToQueue('prompt-to-video-response', {
+                        ...finalOutputPath,
+                        payload,
+                    })
+                }
             }
         } catch (err) {
             console.error("❌ Message is not valid JSON");

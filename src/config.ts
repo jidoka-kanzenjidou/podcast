@@ -85,6 +85,6 @@ export const config: AppConfig = {
         accessKey: getEnv('MINIO_ROOT_USER', 'podcast_admin'),
         secretKey: getEnv('MINIO_ROOT_PASSWORD', 'supersecurepassword'),
         useSSL: getEnv('MINIO_USE_SSL', 'false') === 'true',
-        bucketName: getEnv('MINIO_BUCKET_NAME', 'podcast-bucket'),
+        bucketName: getEnv('MINIO_BUCKET_NAME', 'prompt-video-downloads'),
     },
 };
