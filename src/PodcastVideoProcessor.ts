@@ -70,7 +70,7 @@ export class PodcastVideoProcessor {
 
         const completionContent = response.choices[0].message.content
         const finalOutputPath = path.resolve(outputDir, `final_podcast_video_${Date.now()}.mp4`);
-        await videoManager.processVideos(absVideoOptions, finalOutputPath);
+        await videoManager.processVideos(absVideoOptions, finalOutputPath, true);
 
         console.log(`🚀 Podcast video processing complete. Output: ${finalOutputPath}`);
 
