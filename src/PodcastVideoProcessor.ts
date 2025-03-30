@@ -12,7 +12,7 @@ export interface PodcastContentItem {
 }
 
 export interface PodcastVideoResult {
-    fileKey: string;
+    downloads: string[];
     content: PodcastContentItem[];
 }
 
@@ -78,7 +78,7 @@ export class PodcastVideoProcessor {
         console.log(`☁️ Video uploaded to storage with key: ${uploadedFileKey}`);
 
         return {
-            fileKey: uploadedFileKey,
+            downloads: [uploadedFileKey],
             content: completionContent
         };
     }
