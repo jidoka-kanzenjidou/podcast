@@ -47,7 +47,7 @@ async function handlePromptToVideoTask(payload: PromptPayload, taskId: string | 
         console.debug("✅ Video processing complete. Output path:", finalOutputPath, payload);
         await sendMessageToQueue('prompt-to-video-response', {
             ...finalOutputPath,
-            payload,
+            payload: null, // be hidden
             taskId,
             accountId,
         });
