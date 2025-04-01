@@ -27,7 +27,7 @@ export class PodcastVideoProcessor {
         console.debug('🔑 Extracting best keyword for image search from prompt:', prompt);
 
         const svc = new FindBestKeywordService();
-        const keyword = await svc.runFindBestKeyword(prompt, 3_000, 5 * 60_000);
+        const keyword = await svc.runFindBestKeyword(prompt, 20_000, 5 * 60_000);
 
         console.debug('🔑 Best keyword extracted:', keyword);
         return keyword
