@@ -545,7 +545,7 @@ function-bind@^1.1.2:
 
 "genericcontentprocessor.ts@github:qtvhao/GenericContentProcessor.ts":
   version "1.0.0"
-  resolved "https://codeload.github.com/qtvhao/GenericContentProcessor.ts/tar.gz/b5d609ead1a1b956e1bcef111916fa3d4a6123f1"
+  resolved "https://codeload.github.com/qtvhao/GenericContentProcessor.ts/tar.gz/d4bf819ad549c1c0a81923ce9e93aa7a6d90b280"
   dependencies:
     dotenv "^16.4.7"
     kafkajs "^2.2.4"
