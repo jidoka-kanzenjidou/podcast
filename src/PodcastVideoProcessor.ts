@@ -5,6 +5,16 @@ import { GenericVideoManager } from "genericcontentprocessor.ts/dist/GenericVide
 import path from "path";
 import fs from "fs";
 import { Storage } from "./utils/storage.js";
+import { createLogger, transports, format } from 'winston';
+
+const logger = createLogger({
+  level: 'debug',
+  format: format.combine(
+    format.timestamp(),
+    format.printf(({ timestamp, level, message }) => `${timestamp} [${level.toUpperCase()}]: ${message}`)
+  ),
+  transports: [new transports.Console()],
+});
 
 export interface PodcastContentItem {
     translated: string;
@@ -37,7 +47,7 @@ export class PodcastVideoProcessor {
 
     async processPodcastToVideo(prompt: string): Promise<PodcastVideoResult | null> {
         const svc = new BilingualPodcastService();
-        const contentProcessor = new GenericContentProcessor(svc);
+        const contentProcessor = new GenericContentProcessor(svc, logger);
         const videoManager = new GenericVideoManager();
 
         if (!await contentProcessor.checkServiceHealth()) return null;
