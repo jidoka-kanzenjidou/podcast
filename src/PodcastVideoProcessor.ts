@@ -60,6 +60,7 @@ export class PodcastVideoProcessor {
 
         const clips = contentProcessor.extractClipsFromResponse(response).map(clip => ({
             ...clip,
+            fps: parseInt(process.env.PODCAST_CLIP_FPS || "2", 10),
             query: query,
         }));
         if (clips.length === 0) return null;
