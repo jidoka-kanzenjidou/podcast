@@ -40,8 +40,12 @@ function logPayloadDetails(payload: PromptPayload) {
 
 async function handlePromptToVideoTask(payload: PromptPayload, taskId: string | undefined, accountId: number | undefined) {
     console.debug("🛠️ Starting task handling for Task ID:", taskId, "Account ID:", accountId);
+    if (!taskId) {
+        console.warn("⚠️ Missing taskId, cannot proceed with video processing.");
+        return;
+    }
     const processor = new PodcastVideoProcessor();
-    const finalOutputPath = await processor.processPodcastToVideo(payload.prompt!);
+    const finalOutputPath = await processor.processPodcastToVideo(payload.prompt!, taskId!);
 
     if (finalOutputPath) {
         console.debug("✅ Video processing complete. Output path:", finalOutputPath, payload);

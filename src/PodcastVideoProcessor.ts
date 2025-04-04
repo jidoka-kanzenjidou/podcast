@@ -45,7 +45,9 @@ export class PodcastVideoProcessor {
             .replace(/^"(.*)"$/, '$1');
     }
 
-    async processPodcastToVideo(prompt: string): Promise<PodcastVideoResult | null> {
+    async processPodcastToVideo(prompt: string, taskId: string): Promise<PodcastVideoResult | null> {
+        console.log(`🎧 [Task ${taskId}] Starting podcast to video processing...`);
+        
         const svc = new BilingualPodcastService();
         const contentProcessor = new GenericContentProcessor(svc, logger);
         const videoManager = new GenericVideoManager();
@@ -60,6 +62,7 @@ export class PodcastVideoProcessor {
 
         const clips = contentProcessor.extractClipsFromResponse(response).map(clip => ({
             ...clip,
+            parentTaskId: taskId,
             fps: parseInt(process.env.PODCAST_CLIP_FPS || "2", 10),
             query: query,
         }));
@@ -80,13 +83,14 @@ export class PodcastVideoProcessor {
         }
 
         const completionContent = response.choices[0].message.content
-        const finalOutputPath = path.resolve(outputDir, `final_podcast_video_${Date.now()}.mp4`);
+        const finalOutputPath = path.resolve(outputDir, `final_podcast_video_${taskId}.mp4`);
         await videoManager.processVideos(absVideoOptions, finalOutputPath, true);
 
         console.log(`🚀 Podcast video processing complete. Output: ${finalOutputPath}`);
 
-        const uploadedFileKey = await this.storage.uploadFile(path.basename(finalOutputPath), finalOutputPath);
+        const uploadedFileKey = await this.storage.uploadFile(`podcast_${taskId}.mp4`, finalOutputPath);
         console.log(`☁️ Video uploaded to storage with key: ${uploadedFileKey}`);
+        console.log(`✅ [Task ${taskId}] Processing complete and uploaded.`);
 
         return {
             downloads: [uploadedFileKey],
