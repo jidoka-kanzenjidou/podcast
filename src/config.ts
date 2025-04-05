@@ -5,6 +5,7 @@ dotenv.config(); // Load environment variables from a .env file
 
 // Define TypeScript interfaces for configuration
 interface KafkaTopics {
+    harborProgress: string;
     request: string;
     response: string;
 }
@@ -67,6 +68,7 @@ export const config: AppConfig = {
         brokers: getEnv('KAFKA_BROKERS', 'localhost:9092').split(','),
         groupId: getEnv('KAFKA_GROUP_ID', 'podcast-consumer-group'),
         topics: {
+            harborProgress: getEnv('KAFKA_HARBOR_PROGRESS_TOPIC', 'harbor_progress_topic'),
             request: getEnv('KAFKA_REQUEST_TOPIC', 'podcast_requests'),
             response: getEnv('KAFKA_RESPONSE_TOPIC', 'podcast_responses'),
         },
