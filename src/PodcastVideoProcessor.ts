@@ -6,6 +6,8 @@ import path from "path";
 import fs from "fs";
 import { Storage } from "./utils/storage.js";
 import { createLogger, transports, format } from 'winston';
+import { config } from "./config.js"
+import { sendMessageToQueue } from "./utils/kafkaHelper.js";
 
 const logger = createLogger({
   level: 'debug',
@@ -33,6 +35,14 @@ export class PodcastVideoProcessor {
         this.storage = new Storage();
     }
 
+    private notifyStep(taskId: string, currentStep: string): void {
+        console.log(`🔔 [Task ${taskId}] ${currentStep}`);
+        sendMessageToQueue(config.kafka.topics.harborProgress, {
+            parentTaskId: taskId,
+            currentStep,
+        })
+    }
+
     private async extractImageSearchQuery(prompt: string): Promise<string | undefined> {
         console.debug('🔑 Extracting best keyword for image search from prompt:', prompt);
 
@@ -54,6 +64,7 @@ export class PodcastVideoProcessor {
 
         if (!await contentProcessor.checkServiceHealth()) return null;
 
+        this.notifyStep(taskId, "Process started.")
         const query = await this.extractImageSearchQuery(prompt);
         if (!query) return null;
 
