@@ -2,6 +2,7 @@ import { EachMessagePayload } from "kafkajs";
 import { startKafkaConsumer } from "./kafka/kafkaConsumer.js";
 import { PodcastVideoProcessor } from "./PodcastVideoProcessor.js";
 import { sendMessageToQueue } from "./utils/kafkaHelper.js";
+import { config } from "./config.js"
 
 interface KafkaMessagePayload {
     taskId?: string;
@@ -45,6 +46,12 @@ async function handlePromptToVideoTask(payload: PromptPayload, taskId: string | 
         return;
     }
     const processor = new PodcastVideoProcessor();
+    processor.on('step', ({taskId, currentStep}) => {
+        sendMessageToQueue(config.kafka.topics.harborProgress, {
+            parentTaskId: taskId,
+            currentStep,
+        });
+    })
     const finalOutputPath = await processor.processPodcastToVideo(payload.prompt!, taskId!);
 
     if (finalOutputPath) {

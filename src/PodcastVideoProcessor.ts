@@ -6,8 +6,7 @@ import path from "path";
 import fs from "fs";
 import { Storage } from "./utils/storage.js";
 import { createLogger, transports, format } from 'winston';
-import { config } from "./config.js"
-import { sendMessageToQueue } from "./utils/kafkaHelper.js";
+import { EventEmitter } from 'events';
 
 const logger = createLogger({
   level: 'debug',
@@ -30,17 +29,24 @@ export interface PodcastVideoResult {
 
 export class PodcastVideoProcessor {
     private storage: Storage;
+    private eventEmitter: EventEmitter;
 
     constructor() {
         this.storage = new Storage();
+        this.eventEmitter = new EventEmitter();
+    }
+
+    on(event: string, callback: (...args: any[]) => void): void {
+        this.eventEmitter.on(event, callback);
+    }
+
+    emit(event: string, ...args: any[]): void {
+        this.eventEmitter.emit(event, ...args);
     }
 
     private notifyStep(taskId: string, currentStep: string): void {
         console.log(`🔔 [Task ${taskId}] ${currentStep}`);
-        sendMessageToQueue(config.kafka.topics.harborProgress, {
-            parentTaskId: taskId,
-            currentStep,
-        })
+        this.emit('step', { taskId, currentStep });
     }
 
     private async extractImageSearchQuery(prompt: string): Promise<string | undefined> {
