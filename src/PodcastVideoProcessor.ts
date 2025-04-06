@@ -68,12 +68,14 @@ export class PodcastVideoProcessor {
         const contentProcessor = new GenericContentProcessor(svc, logger);
         const videoManager = new GenericVideoManager();
 
+        this.notifyStep(taskId, "🩺 Đang kiểm tra trạng thái dịch vụ xử lý nội dung...");
         if (!await contentProcessor.checkServiceHealth()) return null;
 
-        this.notifyStep(taskId, "Process started.")
+        this.notifyStep(taskId, "🔍 Đang tạo truy vấn tìm kiếm hình ảnh...")
         const query = await this.extractImageSearchQuery(prompt);
         if (!query) return null;
 
+        this.notifyStep(taskId, "📝 Đang tạo nội dung từ đoạn hội thoại...")
         const response = await contentProcessor.generateContent(prompt);
         if (!response) return null;
 
@@ -85,6 +87,7 @@ export class PodcastVideoProcessor {
         }));
         if (clips.length === 0) return null;
 
+        this.notifyStep(taskId, "🎬 Đang tạo tuỳ chọn video từ các đoạn cắt...")
         const videoOptions = await contentProcessor.compileVideoCreationOptions(clips);
         if (videoOptions.length === 0) return null;
 
@@ -101,10 +104,13 @@ export class PodcastVideoProcessor {
 
         const completionContent = response.choices[0].message.content
         const finalOutputPath = path.resolve(outputDir, `final_podcast_video_${taskId}.mp4`);
+
+        this.notifyStep(taskId, "⚙️ Đang xử lý và tạo video cuối cùng...")
         await videoManager.processVideos(absVideoOptions, finalOutputPath, true);
 
         console.log(`🚀 Podcast video processing complete. Output: ${finalOutputPath}`);
 
+        this.notifyStep(taskId, "📤 Đang tải video lên bộ nhớ...")
         const uploadedFileKey = await this.storage.uploadFile(`podcast_${taskId}.mp4`, finalOutputPath);
         console.log(`☁️ Video uploaded to storage with key: ${uploadedFileKey}`);
         console.log(`✅ [Task ${taskId}] Processing complete and uploaded.`);
