@@ -30,6 +30,7 @@ export interface PodcastVideoResult {
 export class PodcastVideoProcessor {
     private storage: Storage;
     private eventEmitter: EventEmitter;
+    private stepTimestamps: Record<string, number> = {};
 
     constructor() {
         this.storage = new Storage();
@@ -45,8 +46,14 @@ export class PodcastVideoProcessor {
     }
 
     private notifyStep(taskId: string, currentStep: string): void {
-        console.log(`🔔 [Task ${taskId}] ${currentStep}`);
-        this.emit('step', { taskId, currentStep });
+        const now = Date.now();
+        const lastTimestamp = this.stepTimestamps[taskId] || now;
+        const elapsed = now - lastTimestamp;
+        this.stepTimestamps[taskId] = now;
+
+        const elapsedStr = lastTimestamp === now ? '' : ` (+${(elapsed / 1000).toFixed(2)}s)`;
+        console.log(`🔔 [Task ${taskId}] ${currentStep}${elapsedStr}`);
+        this.emit('step', { taskId, currentStep, elapsedMs: elapsed });
     }
 
     private async extractImageSearchQuery(prompt: string): Promise<string | undefined> {
