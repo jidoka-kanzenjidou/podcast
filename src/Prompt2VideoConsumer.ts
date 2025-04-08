@@ -46,10 +46,11 @@ async function handlePromptToVideoTask(payload: PromptPayload, taskId: string | 
         return;
     }
     const processor = new PodcastVideoProcessor();
-    processor.on('step', ({taskId, currentStep}) => {
+    processor.on('step', ({taskId, currentStep, elapsedMs}) => {
         sendMessageToQueue(config.kafka.topics.harborProgress, {
             parentTaskId: taskId,
             currentStep,
+            elapsedMs,
         });
     })
     const finalOutputPath = await processor.processPodcastToVideo(payload.prompt!, taskId!);
