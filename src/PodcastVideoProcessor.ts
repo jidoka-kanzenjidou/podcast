@@ -107,7 +107,7 @@ export class PodcastVideoProcessor {
         }
 
         this.notifyStep(taskId, "🎬 Đang tạo tuỳ chọn video từ các đoạn cắt...")
-        const videoOptions = await contentProcessor.compileVideoCreationOptions(clips);
+        const videoOptions = await contentProcessor.compileVideoCreationOptions(clips, taskId);
         if (videoOptions.length === 0) {
             this.notifyStep(taskId, "❌ Không thể tạo tuỳ chọn video từ các đoạn cắt.");
             return null;
