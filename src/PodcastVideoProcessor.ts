@@ -83,7 +83,7 @@ export class PodcastVideoProcessor {
         if (!query) return null;
 
         this.notifyStep(taskId, "📝 Đang tạo nội dung từ đoạn hội thoại...")
-        const response = await contentProcessor.generateContent(prompt);
+        const response = await contentProcessor.generateContent(prompt, taskId);
         if (!response) return null;
 
         const clips = contentProcessor.extractClipsFromResponse(response).map(clip => ({
