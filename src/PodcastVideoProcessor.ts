@@ -76,15 +76,24 @@ export class PodcastVideoProcessor {
         const videoManager = new GenericVideoManager();
 
         this.notifyStep(taskId, "🩺 Đang kiểm tra trạng thái dịch vụ xử lý nội dung...");
-        if (!await contentProcessor.checkServiceHealth()) return null;
+        if (!await contentProcessor.checkServiceHealth()) {
+            this.notifyStep(taskId, "❌ Dịch vụ xử lý nội dung không khả dụng.");
+            return null;
+        }
 
         this.notifyStep(taskId, "🔍 Đang tạo truy vấn tìm kiếm hình ảnh...")
         const query = await this.extractImageSearchQuery(prompt);
-        if (!query) return null;
+        if (!query) {
+            this.notifyStep(taskId, "❌ Không thể tạo truy vấn tìm kiếm hình ảnh.");
+            return null;
+        }
 
         this.notifyStep(taskId, "📝 Đang tạo nội dung từ đoạn hội thoại...")
         const response = await contentProcessor.generateContent(prompt, taskId);
-        if (!response) return null;
+        if (!response) {
+            this.notifyStep(taskId, "❌ Không thể tạo nội dung từ đoạn hội thoại.");
+            return null;
+        }
 
         const clips = contentProcessor.extractClipsFromResponse(response).map(clip => ({
             ...clip,
@@ -92,11 +101,17 @@ export class PodcastVideoProcessor {
             fps: parseInt(process.env.PODCAST_CLIP_FPS || "2", 10),
             query: query,
         }));
-        if (clips.length === 0) return null;
+        if (clips.length === 0) {
+            this.notifyStep(taskId, "❌ Không tìm thấy đoạn cắt nào từ nội dung.");
+            return null;
+        }
 
         this.notifyStep(taskId, "🎬 Đang tạo tuỳ chọn video từ các đoạn cắt...")
         const videoOptions = await contentProcessor.compileVideoCreationOptions(clips);
-        if (videoOptions.length === 0) return null;
+        if (videoOptions.length === 0) {
+            this.notifyStep(taskId, "❌ Không thể tạo tuỳ chọn video từ các đoạn cắt.");
+            return null;
+        }
 
         // Convert output paths to absolute paths
         const absVideoOptions = videoOptions.map(option => ({
