@@ -69,6 +69,7 @@ export class PodcastVideoProcessor {
     }
 
     async processPodcastToVideo(prompt: string, taskId: string): Promise<PodcastVideoResult | null> {
+try {
         console.log(`🎧 [Task ${taskId}] Starting podcast to video processing...`);
         
         const svc = new BilingualPodcastService();
@@ -141,5 +142,16 @@ export class PodcastVideoProcessor {
             downloads: [uploadedFileKey],
             content: completionContent
         };
+    } catch (error) {
+        this.notifyStep(taskId, "❌ Đã xảy ra lỗi khi xử lý video podcast.");
+        console.error("❌ Error during podcast to video processing:", error);
+        if (error instanceof Error) {
+            console.error("📄 Error message:", error.message);
+            console.error("🧵 Stack trace:", error.stack);
+        } else {
+            console.error("📄 Raw error object:", JSON.stringify(error, null, 2));
+        }
+        return null;
+    }
     }
 }
