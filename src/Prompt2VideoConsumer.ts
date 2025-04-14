@@ -53,6 +53,18 @@ async function handlePromptToVideoTask(payload: PromptPayload, taskId: string | 
             elapsedMs,
         });
     })
+    processor.on('failure', ({taskId, errorMessage, elapsedMs, errorDetails}) => {
+        sendMessageToQueue(config.kafka.topics.harborProgress, {
+            parentTaskId: taskId,
+            currentStep: errorMessage,
+            elapsedMs,
+        });
+        sendMessageToQueue('dlq', {
+            parentTaskId: taskId,
+            currentStep: errorDetails,
+            elapsedMs,
+        });
+    })
     const finalOutputPath = await processor.processPodcastToVideo(payload.prompt!, taskId!);
 
     if (finalOutputPath) {
