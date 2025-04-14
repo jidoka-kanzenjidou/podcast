@@ -53,13 +53,19 @@ async function handlePromptToVideoTask(payload: PromptPayload, taskId: string | 
             elapsedMs,
         });
     })
-    processor.on('failure', ({taskId, errorMessage, elapsedMs, errorDetails}) => {
-        sendMessageToQueue(config.kafka.topics.harborProgress, {
+    processor.on('failure', async ({taskId, errorMessage, elapsedMs, errorDetails}) => {
+        console.error("💥 Processor failure event received:", {
+            taskId,
+            errorMessage,
+            elapsedMs,
+            errorDetails,
+        });
+        await sendMessageToQueue(config.kafka.topics.harborProgress, {
             parentTaskId: taskId,
             currentStep: errorMessage,
             elapsedMs,
         });
-        sendMessageToQueue('dlq', {
+        await sendMessageToQueue('dlq', {
             parentTaskId: taskId,
             currentStep: errorDetails,
             elapsedMs,
