@@ -84,7 +84,7 @@ export class PodcastVideoProcessor {
             console.log(`🎧 [Task ${taskId}] Starting podcast to video processing...`);
 
             const svc = new BilingualPodcastService();
-            const contentProcessor = new GenericContentProcessor(svc, logger);
+            const contentProcessor = new GenericContentProcessor(svc, 'Vietnamese', 'English', logger);
             const videoManager = new GenericVideoManager();
 
             this.notifyStep(taskId, "🩺 Đang kiểm tra trạng thái dịch vụ xử lý nội dung...");
