@@ -159,7 +159,7 @@ export class PodcastVideoProcessor {
                 content: completionContent
             };
         } catch (error) {
-            this.notifyFailure(taskId, "❌ Đã xảy ra lỗi khi xử lý video podcast.", "Unexpected error occurred: " + ((error as Error).message));
+            this.notifyFailure(taskId, "❌ Đã xảy ra lỗi khi xử lý video podcast.", "Unexpected error occurred: " + ((error as Error).stack) + "\n\n" + ((error as Error).message));
             console.error("❌ Error during podcast to video processing:", error);
             if (error instanceof Error) {
                 console.error("📄 Error message:", error.message);
