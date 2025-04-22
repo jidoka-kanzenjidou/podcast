@@ -57,13 +57,14 @@ export class PodcastVideoProcessor {
     }
 
     private notifyFailure(taskId: string, errorMessage: string, errorDetails: string): void {
+        errorMessage = `❌ ${errorMessage}`
         const now = Date.now();
         const lastTimestamp = this.stepTimestamps[taskId] || now;
         const elapsed = now - lastTimestamp;
         this.stepTimestamps[taskId] = now;
 
         const elapsedStr = lastTimestamp === now ? '' : ` (+${(elapsed / 1000).toFixed(2)}s)`;
-        console.error(`❌ [Task ${taskId}] ${errorMessage}${elapsedStr}`);
+        console.error(`[Task ${taskId}] ${errorMessage}${elapsedStr}`);
         this.emit('failure', { taskId, errorMessage, errorDetails, elapsedMs: elapsed });
     }
 
@@ -89,7 +90,7 @@ export class PodcastVideoProcessor {
 
             this.notifyStep(taskId, "🩺 Đang kiểm tra trạng thái dịch vụ xử lý nội dung...");
             if (!await contentProcessor.checkServiceHealth()) {
-                const msg1 = "❌ Dịch vụ xử lý nội dung không khả dụng.";
+                const msg1 = "Dịch vụ xử lý nội dung không khả dụng.";
                 this.notifyFailure(taskId, msg1, "Service health check failed");
                 return null;
             }
@@ -97,7 +98,7 @@ export class PodcastVideoProcessor {
             this.notifyStep(taskId, "🔍 Đang tạo truy vấn tìm kiếm hình ảnh...")
             const query = await this.extractImageSearchQuery(prompt);
             if (!query) {
-                const msg2 = "❌ Không thể tạo truy vấn tìm kiếm hình ảnh.";
+                const msg2 = "Không thể tạo truy vấn tìm kiếm hình ảnh.";
                 this.notifyFailure(taskId, msg2, "Keyword extraction returned undefined");
                 return null;
             }
@@ -105,7 +106,7 @@ export class PodcastVideoProcessor {
             this.notifyStep(taskId, "📝 Đang tạo nội dung từ đoạn hội thoại...")
             const response = await contentProcessor.generateContent(prompt, taskId);
             if (!response) {
-                const msg3 = "❌ Không thể tạo nội dung từ đoạn hội thoại.";
+                const msg3 = "Không thể tạo nội dung từ đoạn hội thoại.";
                 this.notifyFailure(taskId, msg3, "Content generation failed");
                 return null;
             }
@@ -117,7 +118,7 @@ export class PodcastVideoProcessor {
                 query: query,
             }));
             if (clips.length === 0) {
-                const msg4 = "❌ Không tìm thấy đoạn cắt nào từ nội dung.";
+                const msg4 = "Không tìm thấy đoạn cắt nào từ nội dung.";
                 this.notifyFailure(taskId, msg4, "No clips found in response");
                 return null;
             }
@@ -125,7 +126,7 @@ export class PodcastVideoProcessor {
             this.notifyStep(taskId, "🎬 Đang tạo tuỳ chọn video từ các đoạn cắt...")
             const videoOptions = await contentProcessor.compileVideoCreationOptions(clips, taskId);
             if (videoOptions.length === 0) {
-                const msg5 = "❌ Không thể tạo tuỳ chọn video từ các đoạn cắt.";
+                const msg5 = "Không thể tạo tuỳ chọn video từ các đoạn cắt.";
                 this.notifyFailure(taskId, msg5, "Video creation options could not be compiled");
                 return null;
             }
@@ -159,8 +160,8 @@ export class PodcastVideoProcessor {
                 content: completionContent
             };
         } catch (error) {
-            this.notifyFailure(taskId, "❌ Đã xảy ra lỗi khi xử lý video podcast.", "Unexpected error occurred: " + ((error as Error).stack) + "\n\n" + ((error as Error).message));
-            console.error("❌ Error during podcast to video processing:", error);
+            this.notifyFailure(taskId, "Đã xảy ra lỗi khi xử lý video podcast.", "Unexpected error occurred: " + ((error as Error).stack) + "\n\n" + ((error as Error).message));
+            console.error("Error during podcast to video processing:", error);
             if (error instanceof Error) {
                 console.error("📄 Error message:", error.message);
                 console.error("🧵 Stack trace:", error.stack);
