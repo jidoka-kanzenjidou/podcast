@@ -56,7 +56,7 @@ export class PodcastVideoProcessor {
         this.emit('step', { taskId, currentStep, elapsedMs: elapsed });
     }
 
-    private notifyFailure(taskId: string, errorMessage: string, errorDetails: string): void {
+    private notifyFailure(taskId: string, errorMessage: string, errorDetails: string, debugData: any = null): void {
         errorMessage = `❌ ${errorMessage}`
         const now = Date.now();
         const lastTimestamp = this.stepTimestamps[taskId] || now;
@@ -65,6 +65,7 @@ export class PodcastVideoProcessor {
 
         const elapsedStr = lastTimestamp === now ? '' : ` (+${(elapsed / 1000).toFixed(2)}s)`;
         console.error(`[Task ${taskId}] ${errorMessage}${elapsedStr}`);
+        this.emit('debugData', { taskId, errorMessage, errorDetails, elapsed, debugData })
         this.emit('failure', { taskId, errorMessage, errorDetails, elapsedMs: elapsed });
     }
 
@@ -119,7 +120,7 @@ export class PodcastVideoProcessor {
             }));
             if (clips.length === 0) {
                 const msg4 = "Không tìm thấy đoạn cắt nào từ nội dung.";
-                this.notifyFailure(taskId, msg4, "No clips found in response");
+                this.notifyFailure(taskId, msg4, "No clips found in response", [response]);
                 return null;
             }
 
