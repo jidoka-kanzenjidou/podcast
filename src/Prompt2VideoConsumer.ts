@@ -52,7 +52,7 @@ async function handlePromptToVideoTask(payload: PromptPayload, taskId: string | 
             currentStep,
             elapsedMs,
         });
-    })
+    });
     processor.on('debugData', async ({ taskId, errorMessage, errorDetails, elapsed, debugData }) => {
         await sendMessageToQueue('dlq-debug-data', {
             parentTaskId: taskId,
