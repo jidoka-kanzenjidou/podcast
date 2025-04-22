@@ -53,6 +53,15 @@ async function handlePromptToVideoTask(payload: PromptPayload, taskId: string | 
             elapsedMs,
         });
     })
+    processor.on('debugData', async ({ taskId, errorMessage, errorDetails, elapsed, debugData }) => {
+        await sendMessageToQueue('dlq-debug-data', {
+            parentTaskId: taskId,
+            currentStep: errorDetails,
+            errorMessage,
+            elapsed,
+            debugData,
+        });
+    })
     processor.on('failure', async ({taskId, errorMessage, elapsedMs, errorDetails}) => {
         console.error("💥 Processor failure event received:", {
             taskId,
