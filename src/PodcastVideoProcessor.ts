@@ -31,9 +31,12 @@ export class PodcastVideoProcessor {
     private storage: Storage;
     private eventEmitter: EventEmitter;
     private stepTimestamps: Record<string, number> = {};
+    private contentProcessor: GenericContentProcessor;
 
     constructor() {
         this.storage = new Storage();
+        const svc = new BilingualPodcastService();
+        this.contentProcessor = new GenericContentProcessor(svc, 'Vietnamese', 'English', logger);
         this.eventEmitter = new EventEmitter();
     }
 
@@ -80,17 +83,49 @@ export class PodcastVideoProcessor {
             .trim()
             .replace(/^"(.*)"$/, '$1');
     }
+    private async generateClips(prompt: string, taskId: string, query: string, attempts: number = 5): Promise<any[]> {
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+            this.notifyStep(taskId, `📝 Attempt ${attempt}: Đang tạo nội dung từ đoạn hội thoại...`);
+
+            const response = await this.contentProcessor.generateContent(prompt, taskId);
+            if (!response) {
+                if (attempt === attempts) {
+                    const msg = "Không thể tạo nội dung từ đoạn hội thoại sau nhiều lần thử.";
+                    this.notifyFailure(taskId, msg, "Content generation failed after retries");
+                    return [];
+                }
+                continue;
+            }
+
+            const clips = this.contentProcessor.extractClipsFromResponse(response).map(clip => ({
+                ...clip,
+                parentTaskId: taskId,
+                fps: parseInt(process.env.PODCAST_CLIP_FPS || "2", 10),
+                query: query,
+            }));
+
+            if (clips.length > 0) {
+                return clips;
+            }
+
+            if (attempt === attempts) {
+                const msg = "Không tìm thấy đoạn cắt nào từ nội dung sau nhiều lần thử.";
+                this.notifyFailure(taskId, msg, "No clips found in response after retries", [response]);
+                return [];
+            }
+        }
+
+        return [];
+    }
 
     async processPodcastToVideo(prompt: string, taskId: string): Promise<PodcastVideoResult | null> {
         try {
             console.log(`🎧 [Task ${taskId}] Starting podcast to video processing...`);
 
-            const svc = new BilingualPodcastService();
-            const contentProcessor = new GenericContentProcessor(svc, 'Vietnamese', 'English', logger);
             const videoManager = new GenericVideoManager();
 
             this.notifyStep(taskId, "🩺 Đang kiểm tra trạng thái dịch vụ xử lý nội dung...");
-            if (!await contentProcessor.checkServiceHealth()) {
+            if (!await this.contentProcessor.checkServiceHealth()) {
                 const msg1 = "Dịch vụ xử lý nội dung không khả dụng.";
                 this.notifyFailure(taskId, msg1, "Service health check failed");
                 return null;
@@ -104,28 +139,13 @@ export class PodcastVideoProcessor {
                 return null;
             }
 
-            this.notifyStep(taskId, "📝 Đang tạo nội dung từ đoạn hội thoại...")
-            const response = await contentProcessor.generateContent(prompt, taskId);
-            if (!response) {
-                const msg3 = "Không thể tạo nội dung từ đoạn hội thoại.";
-                this.notifyFailure(taskId, msg3, "Content generation failed");
-                return null;
-            }
-
-            const clips = contentProcessor.extractClipsFromResponse(response).map(clip => ({
-                ...clip,
-                parentTaskId: taskId,
-                fps: parseInt(process.env.PODCAST_CLIP_FPS || "2", 10),
-                query: query,
-            }));
+            const clips = await this.generateClips(prompt, taskId, query);
             if (clips.length === 0) {
-                const msg4 = "Không tìm thấy đoạn cắt nào từ nội dung.";
-                this.notifyFailure(taskId, msg4, "No clips found in response", [response]);
                 return null;
             }
 
             this.notifyStep(taskId, "🎬 Đang tạo tuỳ chọn video từ các đoạn cắt...")
-            const videoOptions = await contentProcessor.compileVideoCreationOptions(clips, taskId);
+            const videoOptions = await this.contentProcessor.compileVideoCreationOptions(clips, taskId);
             if (videoOptions.length === 0) {
                 const msg5 = "Không thể tạo tuỳ chọn video từ các đoạn cắt.";
                 this.notifyFailure(taskId, msg5, "Video creation options could not be compiled");
