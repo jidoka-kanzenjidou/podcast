@@ -83,7 +83,10 @@ export class PodcastVideoProcessor {
             .trim()
             .replace(/^"(.*)"$/, '$1');
     }
-    private async generateClips(prompt: string, taskId: string, query: string, attempts: number = 5): Promise<any[]> {
+    private async generateClips(prompt: string, taskId: string, query: string, attempts: number = 5): Promise<{
+        clips: any[],
+        response: any,
+    }> {
         for (let attempt = 1; attempt <= attempts; attempt++) {
             this.notifyStep(taskId, `📝 Attempt ${attempt}: Đang tạo nội dung từ đoạn hội thoại...`);
 
@@ -92,7 +95,7 @@ export class PodcastVideoProcessor {
                 if (attempt === attempts) {
                     const msg = "Không thể tạo nội dung từ đoạn hội thoại sau nhiều lần thử.";
                     this.notifyFailure(taskId, msg, "Content generation failed after retries");
-                    return [];
+                    return {clips: [], response};
                 }
                 continue;
             }
@@ -105,17 +108,17 @@ export class PodcastVideoProcessor {
             }));
 
             if (clips.length > 0) {
-                return clips;
+                return {clips, response};
             }
 
             if (attempt === attempts) {
                 const msg = "Không tìm thấy đoạn cắt nào từ nội dung sau nhiều lần thử.";
                 this.notifyFailure(taskId, msg, "No clips found in response after retries", [response]);
-                return [];
+                return {clips: [], response};
             }
         }
 
-        return [];
+        return {clips: [], response: null};
     }
 
     async processPodcastToVideo(prompt: string, taskId: string): Promise<PodcastVideoResult | null> {
@@ -139,7 +142,7 @@ export class PodcastVideoProcessor {
                 return null;
             }
 
-            const clips = await this.generateClips(prompt, taskId, query);
+            const {clips, response} = await this.generateClips(prompt, taskId, query);
             if (clips.length === 0) {
                 return null;
             }
